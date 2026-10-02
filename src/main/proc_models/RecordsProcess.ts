@@ -1,8 +1,6 @@
 import logger from './Logger.js'
-import { taskManager } from './TaskEvent.js'
 import appCfg from './AppCfg.js'
 import appDb from './AppDb'
-import mediaProc from './MediaProcess.js'
 import * as path from 'path'
 import * as fs from 'fs'
 import { execFile } from 'child_process'
@@ -185,45 +183,6 @@ import { Util } from './Utils.js'
 //     return resp.success('file classify success')
 // }
 
-async function start_cut_video(
-    req: Dty.Req<Dty.Req_CutVideo>
-): Promise<Dty.Resp<Dty.Resp_CutVideo>> {
-    const taskId = taskManager.startTask(req.cmd)
-    if (!taskId) {
-        const resp = new Dty.Resp<Dty.Resp_CutVideo>()
-        return resp.err(taskManager.makeBusyResponse().status)
-    }
-
-    mediaProc
-        .cutVideo(req)
-        .then((resp) => {
-            const notify: Dty.TaskNotify<Dty.Resp<Dty.Resp_CutVideo>> = {
-                taskId: taskId,
-                cmd: req.cmd,
-                status: resp.code === 0 ? Dty.TaskStatus.Completed : Dty.TaskStatus.Failed,
-                result: resp,
-                error: resp.code !== 0 ? resp.status : undefined
-            }
-            Util.sendTaskNotify(notify)
-            taskManager.completeTask(taskId, resp.code === 0)
-        })
-        .catch((error) => {
-            const notify: Dty.TaskNotify<Dty.Resp<Dty.Resp_CutVideo>> = {
-                taskId: taskId,
-                cmd: req.cmd,
-                status: Dty.TaskStatus.Failed,
-                error: String(error)
-            }
-            Util.sendTaskNotify(notify)
-            taskManager.completeTask(taskId, false)
-        })
-    const resp = new Dty.Resp<Dty.Resp_CutVideo>()
-    resp.code = 0
-    resp.status = 'success'
-    resp.bOver = false
-    return resp
-}
-
 // async function start_sync_trash(
 //     req: Dty.Req<Dty.Req_SyncTrash>
 // ): Promise<Dty.Resp> {
@@ -262,7 +221,6 @@ async function start_cut_video(
 
 class RecordsProc {
     // start_file_classify = file_classify
-    start_cut_video = start_cut_video
     // start_sync_trash = start_sync_trash
 
     file_trash_path_get(fInfo: Dty.File): string {

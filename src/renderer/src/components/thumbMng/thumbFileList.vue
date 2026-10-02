@@ -7,20 +7,14 @@
                 :key="index"
                 :class="{ selected: video === appStore.curSltThumb }"
             >
-                <label class="vscode-checkbox">
-                    <input
-                        type="checkbox"
-                        :checked="appStore.curChkThumb.has(video)"
-                        @change="
-                            toggleVideoSelection(
-                                video,
-                                ($event.target as HTMLInputElement).checked,
-                                index
-                            )
-                        "
-                    />
-                    <span class="checkmark"></span>
-                </label>
+                <n-checkbox
+                    size="small"
+                    :checked="appStore.curChkThumb.has(video)"
+                    @update:checked="
+                        (checked: boolean) =>
+                            toggleVideoSelection(video, checked, index)
+                    "
+                />
                 <span
                     class="xc-text"
                     :style="getVideoLevelColorStyle(video)"
@@ -193,13 +187,5 @@ const getVideoLevelColorStyle = (video): string => {
     /* VSCode selected item background color */
     color: white;
     /* VSCode selected item text color */
-}
-
-.vscode-checkbox {
-    padding-left: 10px;
-    padding-right: 10px;
-    padding: 0px;
-    margin: 0px;
-    opacity: 0.7;
 }
 </style>

@@ -1,26 +1,19 @@
 <template>
     <div class="page-container xc-scrollbar">
         <ul>
-            <!-- Modified part: add dynamic class name and checkbox -->
             <li
                 v-for="(video, index) in videoList"
                 :key="index"
                 :class="{ selected: video === appStore.curSltVideo }"
             >
-                <label class="vscode-checkbox">
-                    <input
-                        type="checkbox"
-                        :checked="appStore.curCheckedVideo.has(video)"
-                        @change="
-                            toggleVideoSelection(
-                                video,
-                                ($event.target as HTMLInputElement).checked,
-                                index
-                            )
-                        "
-                    />
-                    <span class="checkmark"></span>
-                </label>
+                <n-checkbox
+                    size="small"
+                    class="video-checkbox"
+                    :checked="appStore.curCheckedVideo.has(video)"
+                    @update:checked="
+                        (checked: boolean) => toggleVideoSelection(video, checked, index)
+                    "
+                />
                 <span
                     class="xc-text"
                     :style="getVideoLevelColorStyle(video)"
@@ -37,13 +30,10 @@
 import PaginationCtrl from '@renderer/components/common/paginationCtrl.vue'
 import { computed, onBeforeMount, ref, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '@renderer/stores/AppStore'
-import { useI18n } from 'vue-i18n'
 const appStore = useAppStore()
 import '@renderer/assets/common.css'
 import * as Dty from '../../../../../bridge/dataTypedef'
-// import util from '@renderer/utils/util'
 
-const { t } = useI18n()
 const videoList = computed<Dty.File[]>(() => appStore.videoList)
 
 // Record last selected index
@@ -74,12 +64,6 @@ onUnmounted(() => {
 
 // Toggle video selection status
 const toggleVideoSelection = (video: Dty.File, isChecked: boolean, currentIndex: number): void => {
-    console.log(
-        t('videoList.selectionChanged', {
-            name: video.name,
-            status: isChecked ? 'selected' : 'deselected'
-        })
-    )
     if (isShiftPressed.value && lastSelectedIndex.value !== -1) {
         const start = Math.min(lastSelectedIndex.value, currentIndex)
         const end = Math.max(lastSelectedIndex.value, currentIndex)
@@ -132,28 +116,25 @@ const getVideoLevelColorStyle = (video): string => {
     }
 
     const targetColor = levelColorMap[levelName] || '#cccccc'
-    console.log(t('videoList.levelColorMapping', { levelName, targetColor }))
     return `color: ${targetColor};`
 }
 </script>
 
 <style scoped>
-/* Original styles remain unchanged */
 .page-container {
     height: 100%;
     width: calc(100% - 1px);
     padding: 0;
     margin: 0;
     background-color: var(--xc-background-color);
-    /* VSCode sidebar background color */
     color: var(--xc-text-color);
-    /* Text color */
     white-space: nowrap;
     overflow-x: auto;
     border-right: 1px solid #333;
-    /* Right border */
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 /* Firefox compatibility */
@@ -172,35 +153,27 @@ const getVideoLevelColorStyle = (video): string => {
 
 .page-container li {
     cursor: pointer;
-    padding: 2px 2px;
-    /* Increase padding */
+    padding: 2px 4px;
     border-bottom: 1px solid #333;
-    /* Bottom border */
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .page-container li:hover {
     background-color: #37373d;
-    /* Mouse hover background color */
 }
 
 .page-container li:active {
     background-color: #094771;
-    /* Mouse click background color */
 }
 
-/* Modified part: add selected style */
 .page-container li.selected {
     background-color: #094771;
-    /* VSCode selected item background color */
     color: white;
-    /* VSCode selected item text color */
 }
 
-.vscode-checkbox {
-    padding-left: 10px;
-    padding-right: 10px;
-    padding: 0px;
-    margin: 0px;
-    opacity: 0.7;
+.video-checkbox {
+    flex-shrink: 0;
 }
 </style>

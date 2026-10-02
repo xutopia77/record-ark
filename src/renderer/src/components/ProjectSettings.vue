@@ -2,21 +2,12 @@
     <div class="project-settings-container">
         <div class="settings-sidebar">
             <div class="sidebar-header">
-                <button class="back-btn" @click="goBack">← {{ t('common.back') }}</button>
+                <n-button quaternary size="small" @click="goBack">
+                    ← {{ t('common.back') }}
+                </n-button>
             </div>
 
-            <div class="sidebar-menu">
-                <div
-                    v-for="item in menuItems"
-                    :key="item.id"
-                    class="menu-item"
-                    :class="{ active: activeTab === item.id }"
-                    @click="activeTab = item.id"
-                >
-                    <span class="icon">{{ item.icon }}</span>
-                    <span class="label">{{ t(item.label) }}</span>
-                </div>
-            </div>
+            <n-menu :value="activeTab" :options="menuOptions" @update:value="onMenuSelect" />
         </div>
 
         <div class="settings-content">
@@ -45,23 +36,29 @@ import AdminTagMng from './admin_setting/AdminTagMng.vue'
 import thumbMng from './thumbMng/thumbMng.vue'
 import tinyFileDb from './tinyFileDb/tinyFileDb.vue'
 
+import type { MenuOption } from 'naive-ui'
+
 const { t } = useI18n()
 const router = useRouter()
 
 const activeTab = ref('basic')
 
-const menuItems = [
-    { id: 'basic', icon: '⚙️', label: 'projectSettings.basicInfo' },
-    { id: 'files', icon: '📁', label: 'projectSettings.fileList' },
-    { id: 'tags', icon: '🏷️', label: 'projectSettings.tagManagement' },
-    { id: 'thumbnails', icon: '🖼️', label: 'projectSettings.thumbnailManagement' },
-    { id: 'tinyfiles', icon: '📦', label: 'projectSettings.smallFileOrganization' }
-]
+const menuOptions = computed((): MenuOption[] => [
+    { label: `⚙️ ${t('projectSettings.basicInfo')}`, key: 'basic' },
+    { label: `📁 ${t('projectSettings.fileList')}`, key: 'files' },
+    { label: `🏷️ ${t('projectSettings.tagManagement')}`, key: 'tags' },
+    { label: `🖼️ ${t('projectSettings.thumbnailManagement')}`, key: 'thumbnails' },
+    { label: `📦 ${t('projectSettings.smallFileOrganization')}`, key: 'tinyfiles' }
+])
 
 const currentTitle = computed(() => {
-    const item = menuItems.find((i) => i.id === activeTab.value)
-    return item ? t(item.label) : ''
+    const item = menuOptions.value.find((i) => i.key === activeTab.value)
+    return item ? String(item.label) : ''
 })
+
+const onMenuSelect = (key: string): void => {
+    activeTab.value = key
+}
 
 const goBack = (): void => {
     router.push('/')
@@ -78,8 +75,8 @@ const goBack = (): void => {
 }
 
 .settings-sidebar {
-    width: 160px;
-    min-width: 160px;
+    width: 200px;
+    min-width: 200px;
     background-color: #252526;
     border-right: 1px solid #333;
     display: flex;
@@ -89,55 +86,6 @@ const goBack = (): void => {
 .sidebar-header {
     padding: 12px;
     border-bottom: 1px solid #333;
-}
-
-.back-btn {
-    background: none;
-    border: none;
-    color: #007acc;
-    cursor: pointer;
-    font-size: 13px;
-    padding: 4px 8px;
-    border-radius: 4px;
-}
-
-.back-btn:hover {
-    background-color: #37373d;
-}
-
-.sidebar-menu {
-    flex: 1;
-    padding: 8px 0;
-    overflow-y: auto;
-}
-
-.menu-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    color: #ccc;
-    cursor: pointer;
-    transition: background-color 0.15s;
-}
-
-.menu-item:hover {
-    background-color: #37373d;
-}
-
-.menu-item.active {
-    background-color: #094771;
-    color: #fff;
-}
-
-.icon {
-    font-size: 16px;
-    width: 20px;
-    text-align: center;
-}
-
-.label {
-    font-size: 13px;
 }
 
 .settings-content {

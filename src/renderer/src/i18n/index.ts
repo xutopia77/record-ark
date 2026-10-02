@@ -1,4 +1,5 @@
 import { createI18n } from 'vue-i18n'
+import type { Composer } from 'vue-i18n'
 import zhCN from '../locales/zh-CN.json'
 import enUS from '../locales/en-US.json'
 
@@ -32,6 +33,9 @@ const i18n = createI18n<[MessageSchema], 'zh-CN' | 'en-US'>({
     }
 })
 
-console.log('[i18n] Initialized with locale:', i18n.mode === 'legacy' ? i18n.global.locale : i18n.global.locale.value)
+console.log(
+    '[i18n] Initialized with locale:',
+    i18n.mode === 'legacy' ? i18n.global.locale : (i18n.global as unknown as Composer).locale.value
+)
 
 export default i18n

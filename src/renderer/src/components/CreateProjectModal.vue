@@ -1,51 +1,49 @@
 <template>
-    <div v-if="visible" class="modal-overlay" @click.self="close">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3>{{ t('createProject.title') }}</h3>
-                <button class="close-btn" @click="close">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>{{ t('createProject.repoPath') }}</label>
-                    <div class="path-input-group">
-                        <input
-                            v-model="repoPath"
-                            type="text"
-                            class="xc-text-input"
-                            :placeholder="t('createProject.repoPathPlaceholder')"
-                            readonly
-                        />
-                        <button class="xc-button" @click="selectFolder">
-                            {{ t('createProject.browse') }}
-                        </button>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>{{ t('createProject.projectLocation') }}</label>
-                    <div class="path-input-group">
-                        <input
-                            v-model="projectPath"
-                            type="text"
-                            class="xc-text-input"
-                            :placeholder="t('createProject.projectLocationPlaceholder')"
-                            readonly
-                        />
-                        <button class="xc-button" @click="selectProjectFolder">
-                            {{ t('createProject.browse') }}
-                        </button>
-                    </div>
-                    <span class="hint-text">{{ t('createProject.projectLocationHint') }}</span>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="xc-button" @click="close">{{ t('common.cancel') }}</button>
-                <button class="xc-button primary" :disabled="!canCreate" @click="createProject">
-                    {{ t('createProject.create') }}
-                </button>
+    <n-modal
+        :show="visible"
+        preset="card"
+        style="width: 480px"
+        :title="t('createProject.title')"
+        @update:show="close"
+    >
+        <div class="form-group">
+            <label>{{ t('createProject.repoPath') }}</label>
+            <div class="path-input-group">
+                <n-input
+                    v-model:value="repoPath"
+                    size="small"
+                    :placeholder="t('createProject.repoPathPlaceholder')"
+                    readonly
+                />
+                <n-button size="small" @click="selectFolder">
+                    {{ t('createProject.browse') }}
+                </n-button>
             </div>
         </div>
-    </div>
+        <div class="form-group">
+            <label>{{ t('createProject.projectLocation') }}</label>
+            <div class="path-input-group">
+                <n-input
+                    v-model:value="projectPath"
+                    size="small"
+                    :placeholder="t('createProject.projectLocationPlaceholder')"
+                    readonly
+                />
+                <n-button size="small" @click="selectProjectFolder">
+                    {{ t('createProject.browse') }}
+                </n-button>
+            </div>
+            <span class="hint-text">{{ t('createProject.projectLocationHint') }}</span>
+        </div>
+        <template #footer>
+            <div class="modal-footer">
+                <n-button size="small" @click="close">{{ t('common.cancel') }}</n-button>
+                <n-button size="small" type="primary" :disabled="!canCreate" @click="createProject">
+                    {{ t('createProject.create') }}
+                </n-button>
+            </div>
+        </template>
+    </n-modal>
 </template>
 
 <script setup lang="ts">
@@ -130,60 +128,6 @@ const close = (): void => {
 </script>
 
 <style scoped>
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal-container {
-    background-color: #252526;
-    border: 1px solid #3c3c3c;
-    border-radius: 6px;
-    width: 480px;
-    max-width: 90%;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid #3c3c3c;
-}
-
-.modal-header h3 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 500;
-    color: #ffffff;
-}
-
-.close-btn {
-    background: none;
-    border: none;
-    color: #858585;
-    font-size: 20px;
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
-}
-
-.close-btn:hover {
-    color: #ffffff;
-}
-
-.modal-body {
-    padding: 16px;
-}
-
 .form-group {
     margin-bottom: 16px;
 }
@@ -204,10 +148,6 @@ const close = (): void => {
     gap: 8px;
 }
 
-.path-input-group .xc-text-input {
-    flex: 1;
-}
-
 .hint-text {
     display: block;
     margin-top: 4px;
@@ -219,22 +159,5 @@ const close = (): void => {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    padding: 12px 16px;
-    border-top: 1px solid #3c3c3c;
-}
-
-.primary {
-    background-color: #007acc;
-    color: #ffffff;
-}
-
-.primary:hover {
-    background-color: #0098ff;
-}
-
-.primary:disabled {
-    background-color: #3c3c3c;
-    color: #858585;
-    cursor: not-allowed;
 }
 </style>

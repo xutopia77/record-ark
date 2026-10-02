@@ -3,19 +3,17 @@
         <div class="form-section">
             <div class="form-group">
                 <label>{{ t('tinyFileDb.thumbnailFilePath') }}</label>
-                <input
-                    v-model="tinyFilePath"
-                    class="xc-input"
-                    type="text"
+                <n-input
+                    v-model:value="tinyFilePath"
+                    size="small"
                     :placeholder="t('tinyFileDb.thumbnailFilePath')"
                 />
             </div>
             <div class="form-group">
                 <label>{{ t('tinyFileDb.thumbnailDbPath') }}</label>
-                <input
-                    v-model="tinyFileDbPath"
-                    class="xc-input"
-                    type="text"
+                <n-input
+                    v-model:value="tinyFileDbPath"
+                    size="small"
                     :placeholder="t('tinyFileDb.thumbnailDbPath')"
                 />
             </div>
@@ -26,12 +24,12 @@
         </div>
 
         <div class="action-section">
-            <button class="xc-button primary" @click="btnclk_Tiny2DbStart">
+            <n-button size="small" type="primary" @click="btnclk_Tiny2DbStart">
                 {{ t('tinyFileDb.start') }}
-            </button>
-            <button class="xc-button" @click="btnclk_Tiny2DbSop">
+            </n-button>
+            <n-button size="small" @click="btnclk_Tiny2DbSop">
                 {{ t('tinyFileDb.stop') }}
-            </button>
+            </n-button>
         </div>
     </div>
 </template>
@@ -110,21 +108,6 @@ async function btnclk_Tiny2DbStart(): Promise<void> {
     color: #ccc;
 }
 
-.form-group .xc-input {
-    width: 100%;
-    padding: 8px 12px;
-    background-color: #3c3c3c;
-    border: 1px solid #555;
-    border-radius: 4px;
-    color: #ccc;
-    font-size: 13px;
-}
-
-.form-group .xc-input:focus {
-    outline: none;
-    border-color: #007acc;
-}
-
 .description-section {
     padding: 16px;
     background-color: #2d2d30;
@@ -142,16 +125,5 @@ async function btnclk_Tiny2DbStart(): Promise<void> {
 .action-section {
     display: flex;
     gap: 12px;
-}
-
-.xc-button.primary {
-    background-color: #007acc;
-    color: #fff;
-    border-color: #007acc;
-}
-
-.xc-button.primary:hover {
-    background-color: #0098ff;
-    border-color: #0098ff;
 }
 </style>

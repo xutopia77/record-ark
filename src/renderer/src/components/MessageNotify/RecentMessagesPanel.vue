@@ -1,34 +1,33 @@
 <template>
-    <div v-if="visible" class="global-message-panel" @click.stop>
-        <div class="panel-header">
-            <h3 class="panel-title">{{ t('recentMessages.title') }}</h3>
+    <n-drawer v-model:show="appStore.bPageResentMsg" placement="right" :width="350">
+        <n-drawer-content :title="t('recentMessages.title')" closable>
             <div class="header-actions">
-                <button class="xc-button small danger" @click="btn_clear_all_msg">
+                <n-button size="small" type="error" @click="btn_clear_all_msg">
                     {{ t('recentMessages.clearAll') }}
-                </button>
-                <button class="xc-button small primary" @click="appStore.bPageResentMsg = false">
+                </n-button>
+                <n-button size="small" type="primary" @click="appStore.bPageResentMsg = false">
                     {{ t('recentMessages.close') }}
-                </button>
+                </n-button>
             </div>
-        </div>
-        <div class="message-list">
-            <div
-                v-for="message in recentMessages"
-                :key="message.id"
-                class="message-item"
-                :class="message.type"
-            >
-                <span class="message-icon">{{ getIcon(message.type) }}</span>
-                <div class="message-content">
-                    <span class="message-text">{{ message.message }}</span>
-                    <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+            <div class="message-list">
+                <div
+                    v-for="message in recentMessages"
+                    :key="message.id"
+                    class="message-item"
+                    :class="message.type"
+                >
+                    <span class="message-icon">{{ getIcon(message.type) }}</span>
+                    <div class="message-content">
+                        <span class="message-text">{{ message.message }}</span>
+                        <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+                    </div>
+                </div>
+                <div v-if="recentMessages.length === 0" class="no-messages">
+                    {{ t('recentMessages.noMessages') }}
                 </div>
             </div>
-            <div v-if="recentMessages.length === 0" class="no-messages">
-                {{ t('recentMessages.noMessages') }}
-            </div>
-        </div>
-    </div>
+        </n-drawer-content>
+    </n-drawer>
 </template>
 
 <script setup lang="ts">
@@ -40,7 +39,6 @@ const appStore = useAppStore()
 import * as DatType from '../../../../bridge/dataTypedef'
 
 const { t } = useI18n()
-const visible = computed(() => appStore.bPageResentMsg)
 
 // Get latest 5 messages (from history)
 const recentMessages = computed(() => {
@@ -90,40 +88,10 @@ const formatTime = (timestamp: number): string => {
 </script>
 
 <style scoped>
-.global-message-panel {
-    position: fixed;
-    top: 40px;
-    right: 20px;
-    width: 350px;
-    background-color: var(--bg-color, #2d2d2d);
-    border: 1px solid var(--border-color, #444);
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 10000;
-    color: var(--text-color, #ffffff);
-    font-family: var(--font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
-}
-
-.panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 12px; /* Reduce padding */
-    border-bottom: 1px solid var(--border-color, #444);
-    background-color: var(--header-bg-color, #3c3c3c);
-    border-radius: 8px 8px 0 0;
-}
-
-.panel-title {
-    margin: 0;
-    font-size: 13px; /* Reduce font size */
-    font-weight: 600;
-    color: var(--text-color, #ffffff);
-}
-
 .header-actions {
     display: flex;
-    gap: 6px; /* Reduce button spacing */
+    gap: 6px;
+    margin-bottom: 8px;
 }
 
 .message-list {

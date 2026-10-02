@@ -180,14 +180,16 @@ class AppDb {
                 sqlParams.push(file.mediaInfo)
             }
             {
+                // splitInfo / frameInfo are no longer used by business logic.
+                // Keep DB schema compatible by writing empty values.
                 fields.push('splitInfo')
                 values.push('?')
-                sqlParams.push(file.splitInfo)
+                sqlParams.push('')
             }
             {
                 fields.push('frameInfo')
                 values.push('?')
-                sqlParams.push(file.frameInfo)
+                sqlParams.push('')
             }
             {
                 fields.push('thumbnail')
@@ -307,12 +309,14 @@ class AppDb {
                 sqlParams.push(JSON.stringify(fInfo.mediaInfo))
             }
             {
+                // splitInfo / frameInfo are no longer used by business logic.
+                // Keep DB schema compatible by writing empty values.
                 updateFields.push('splitInfo =?')
-                sqlParams.push(JSON.stringify(fInfo.splitInfo))
+                sqlParams.push('')
             }
             {
                 updateFields.push('frameInfo =?')
-                sqlParams.push(JSON.stringify(fInfo.frameInfo))
+                sqlParams.push('')
             }
             {
                 updateFields.push('thumbnail =?')
@@ -593,8 +597,6 @@ class AppDb {
                 fileInfo.duration = fileModel.duration
                 fileInfo.size = fileModel.size
                 fileInfo.mediaInfo = JSON.parse(fileModel.mediaInfo || '{}')
-                fileInfo.splitInfo = JSON.parse(fileModel.splitInfo || '{}')
-                fileInfo.frameInfo = JSON.parse(fileModel.frameInfo || '{}')
                 fileInfo.thumbnail = JSON.parse(fileModel.thumbnail || '{}')
                 fileInfo.eventInfo = JSON.parse(fileModel.eventInfo || '{}')
                 fileInfo.type = fileModel.type
@@ -666,10 +668,6 @@ class AppDb {
                     fileInfo.size = fileViewModel.size
                     fileInfo.mediaInfo =
                         fileViewModel.mediaInfo == '' ? null : JSON.parse(fileViewModel.mediaInfo)
-                    fileInfo.splitInfo =
-                        fileViewModel.splitInfo == '' ? null : JSON.parse(fileViewModel.splitInfo)
-                    fileInfo.frameInfo =
-                        fileViewModel.frameInfo == '' ? null : JSON.parse(fileViewModel.frameInfo)
                     fileInfo.thumbnail =
                         fileViewModel.thumbnail == '' ? null : JSON.parse(fileViewModel.thumbnail)
                     fileInfo.eventInfo =

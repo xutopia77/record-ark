@@ -2,26 +2,28 @@
     <div class="pagination-controls" :class="{ compact: compactMode }">
         <template v-if="compactMode">
             <div class="compact-pagination">
-                <button
+                <n-button
+                    quaternary
+                    size="small"
                     :disabled="currentPage <= 1"
-                    class="xc-button small compact-btn"
                     @click="goToPage(currentPage - 1)"
                 >
                     ◀
-                </button>
+                </n-button>
                 <span class="xc-text page-info-compact">
                     {{ currentPage }} / {{ totalPages || 1 }}
                 </span>
-                <button
+                <n-button
+                    quaternary
+                    size="small"
                     :disabled="currentPage >= totalPages"
-                    class="xc-button small compact-btn"
                     @click="goToPage(currentPage + 1)"
                 >
                     ▶
-                </button>
-                <button class="xc-button small compact-btn settings-btn" @click="openSettingsModal">
+                </n-button>
+                <n-button quaternary size="small" class="settings-btn" @click="openSettingsModal">
                     ⚙
-                </button>
+                </n-button>
             </div>
         </template>
 
@@ -45,68 +47,66 @@
                     </div>
                     <div v-show="isDropdownOpen" class="dropdown-content">
                         <div class="select-all-container">
-                            <label class="checkbox-label">
-                                <input
-                                    type="checkbox"
-                                    :checked="selectedLevels.length === 5"
-                                    @change="toggleSelectAll"
-                                />
+                            <n-checkbox
+                                size="small"
+                                :checked="selectedLevels.length === 5"
+                                @update:checked="toggleSelectAll"
+                            >
                                 {{ t('pagination.selectAll') }}
-                            </label>
+                            </n-checkbox>
                         </div>
-                        <div v-for="index in 5" :key="index" class="level-option">
-                            <label class="checkbox-label">
-                                <input
-                                    v-model="selectedLevels"
-                                    type="checkbox"
-                                    :value="index - 1"
-                                    @change="handleLevelChange"
-                                />
-                                {{ index }}☆
-                            </label>
-                        </div>
+                        <n-checkbox-group
+                            :value="selectedLevels"
+                            @update:value="handleLevelsGroupChange"
+                        >
+                            <div v-for="index in 5" :key="index" class="level-option">
+                                <n-checkbox size="small" :value="index - 1">
+                                    {{ index }}☆
+                                </n-checkbox>
+                            </div>
+                        </n-checkbox-group>
                     </div>
                 </div>
             </div>
 
             <div class="pagination-nav">
-                <button
+                <n-button
+                    quaternary
+                    size="small"
                     :disabled="currentPage <= 1"
-                    class="xc-button small"
                     @click="goToPage(currentPage - 1)"
                 >
                     ◀
-                </button>
+                </n-button>
 
                 <div class="page-jump">
                     <span class="xc-text">{{ t('pagination.jumpTo') }}</span>
-                    <input
-                        v-model.number="jumpPageNum"
-                        type="number"
-                        class="page-input"
+                    <n-input-number
+                        v-model:value="jumpPageNum"
+                        size="tiny"
                         :min="1"
                         :max="totalPages"
                         @keyup.enter="jumpToPage"
                     />
                 </div>
 
-                <button
+                <n-button
+                    quaternary
+                    size="small"
                     :disabled="currentPage >= totalPages"
-                    class="xc-button small"
                     @click="goToPage(currentPage + 1)"
                 >
                     ▶
-                </button>
+                </n-button>
                 <span class="xc-text">{{ t('pagination.itemsPerPage') }}</span>
                 <div class="page-size-selector">
-                    <select v-model="pageSize" class="size-select" @change="handlePageSizeChange">
-                        <option :value="10">10</option>
-                        <option :value="50">50</option>
-                        <option :value="100">100</option>
-                        <option :value="200">200</option>
-                        <option :value="500">500</option>
-                        <option :value="1000">1000</option>
-                    </select>
+                    <n-select
+                        :value="pageSize"
+                        size="tiny"
+                        :consistent-menu-width="false"
+                        :options="pageSizeOptions"
+                        @update:value="handlePageSizeChange"
+                    />
                 </div>
             </div>
         </template>
@@ -119,81 +119,73 @@
             <div class="settings-modal">
                 <div class="modal-header">
                     <span class="xc-text">{{ t('pagination.settings') }}</span>
-                    <button class="close-btn" @click="closeSettingsModal">✕</button>
+                    <n-button quaternary size="small" @click="closeSettingsModal">✕</n-button>
                 </div>
                 <div class="modal-body">
                     <div class="setting-item">
                         <span class="xc-text">{{ t('pagination.fileStatus') }}</span>
-                        <select v-model="modalFileStatus" class="size-select">
-                            <option :value="Dty.Fstatus.Normal">
-                                🗄️ {{ t('pagination.normalFiles') }}
-                            </option>
-                            <option :value="Dty.Fstatus.Deleted">
-                                🗑️ {{ t('pagination.trashFiles') }}
-                            </option>
-                        </select>
+                        <n-select
+                            v-model:value="modalFileStatus"
+                            size="tiny"
+                            :consistent-menu-width="false"
+                            :options="fileStatusOptions"
+                        />
                     </div>
                     <div class="setting-item">
                         <span class="xc-text">{{ t('pagination.levelFilter') }}</span>
-                        <div class="level-checkboxes">
-                            <label class="checkbox-label">
-                                <input v-model="modalSelectedLevels" type="checkbox" :value="-2" />
+                        <n-checkbox-group
+                            class="level-checkboxes"
+                            :value="modalSelectedLevels"
+                            @update:value="handleModalLevelsGroupChange"
+                        >
+                            <n-checkbox size="small" :value="-2">
                                 {{ t('pagination.noLevel') }}
-                            </label>
-                            <label v-for="index in 5" :key="index" class="checkbox-label">
-                                <input
-                                    v-model="modalSelectedLevels"
-                                    type="checkbox"
-                                    :value="index - 1"
-                                />
+                            </n-checkbox>
+                            <n-checkbox
+                                v-for="index in 5"
+                                :key="index"
+                                size="small"
+                                :value="index - 1"
+                            >
                                 {{ index }}☆
-                            </label>
-                        </div>
+                            </n-checkbox>
+                        </n-checkbox-group>
                     </div>
                     <div class="setting-item">
                         <span class="xc-text">{{ t('pagination.sortBy') }}</span>
-                        <select v-model="modalOrderBy" class="size-select">
-                            <option value="name">{{ t('pagination.sortOptions.name') }}</option>
-                            <option value="startTimeSec">
-                                {{ t('pagination.sortOptions.startTimeSec') }}
-                            </option>
-                            <option value="endTimeSec">
-                                {{ t('pagination.sortOptions.endTimeSec') }}
-                            </option>
-                            <option value="size">{{ t('pagination.sortOptions.size') }}</option>
-                            <option value="duration">
-                                {{ t('pagination.sortOptions.duration') }}
-                            </option>
-                        </select>
+                        <n-select
+                            v-model:value="modalOrderBy"
+                            size="tiny"
+                            :consistent-menu-width="false"
+                            :options="orderByOptions"
+                        />
                     </div>
                     <div class="setting-item">
                         <span class="xc-text">{{ t('pagination.sortOrder') }}</span>
-                        <select v-model="modalOrder" class="size-select">
-                            <option value="desc">
-                                {{ t('pagination.sortOrderOptions.desc') }}
-                            </option>
-                            <option value="asc">{{ t('pagination.sortOrderOptions.asc') }}</option>
-                        </select>
+                        <n-select
+                            v-model:value="modalOrder"
+                            size="tiny"
+                            :consistent-menu-width="false"
+                            :options="orderOptions"
+                        />
                     </div>
                     <div class="setting-item">
                         <span class="xc-text">{{ t('pagination.itemsPerPage') }}</span>
-                        <select v-model="modalPageSize" class="size-select">
-                            <option :value="10">10</option>
-                            <option :value="50">50</option>
-                            <option :value="100">100</option>
-                            <option :value="200">200</option>
-                            <option :value="500">500</option>
-                            <option :value="1000">1000</option>
-                        </select>
+                        <n-select
+                            v-model:value="modalPageSize"
+                            size="tiny"
+                            :consistent-menu-width="false"
+                            :options="pageSizeOptions"
+                        />
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="xc-button" @click="applySettings">
+                    <n-button quaternary size="small" @click="applySettings">
                         {{ t('pagination.apply') }}
-                    </button>
-                    <button class="xc-button" @click="closeSettingsModal">
+                    </n-button>
+                    <n-button quaternary size="small" @click="closeSettingsModal">
                         {{ t('pagination.cancel') }}
-                    </button>
+                    </n-button>
                 </div>
             </div>
         </div>
@@ -253,6 +245,11 @@ const totalNum = computed(() => {
 })
 const jumpPageNum = ref(1)
 
+const pageSizeOptions = [10, 50, 100, 200, 500, 1000].map((size) => ({
+    label: String(size),
+    value: size
+}))
+
 const selectedLevels = ref<number[]>([])
 const isDropdownOpen = ref(false)
 
@@ -264,6 +261,22 @@ const modalOrderBy = ref<'name' | 'startTimeSec' | 'endTimeSec' | 'size' | 'dura
     'startTimeSec'
 )
 const modalOrder = ref<'asc' | 'desc'>('desc')
+
+const fileStatusOptions = [
+    { label: `🗄️ ${t('pagination.normalFiles')}`, value: Dty.Fstatus.Normal },
+    { label: `🗑️ ${t('pagination.trashFiles')}`, value: Dty.Fstatus.Deleted }
+]
+const orderByOptions = [
+    { label: t('pagination.sortOptions.name'), value: 'name' },
+    { label: t('pagination.sortOptions.startTimeSec'), value: 'startTimeSec' },
+    { label: t('pagination.sortOptions.endTimeSec'), value: 'endTimeSec' },
+    { label: t('pagination.sortOptions.size'), value: 'size' },
+    { label: t('pagination.sortOptions.duration'), value: 'duration' }
+]
+const orderOptions = [
+    { label: t('pagination.sortOrderOptions.desc'), value: 'desc' },
+    { label: t('pagination.sortOrderOptions.asc'), value: 'asc' }
+]
 
 const toggleDropdown = (): void => {
     isDropdownOpen.value = !isDropdownOpen.value
@@ -290,6 +303,15 @@ const toggleSelectAll = (): void => {
 
 const handleLevelChange = (): void => {
     handleSearch()
+}
+
+const handleLevelsGroupChange = (value: Array<number | string>): void => {
+    selectedLevels.value = value.map((v) => Number(v))
+    handleLevelChange()
+}
+
+const handleModalLevelsGroupChange = (value: Array<number | string>): void => {
+    modalSelectedLevels.value = value.map((v) => Number(v))
 }
 
 const handleClickOutside = (event: Event): void => {
@@ -337,7 +359,8 @@ const handleSearch = (): void => {
     }
 }
 
-const handlePageSizeChange = (): void => {
+const handlePageSizeChange = (value: number): void => {
+    pageSize.value = value
     handleSearch()
     currentPage.value = 1
 }
@@ -440,11 +463,6 @@ const applySettings = (): void => {
     gap: 8px;
 }
 
-.compact-btn {
-    min-width: 28px;
-    padding: 2px 6px;
-}
-
 .page-info-compact {
     font-size: 13px;
     min-width: 60px;
@@ -471,42 +489,8 @@ const applySettings = (): void => {
     min-width: 200px;
 }
 
-.page-input {
-    width: 60px;
-    padding: 4px 8px;
-    background-color: #2d2d30;
-    border: 1px solid #3c3c41;
-    border-radius: 3px;
-    color: var(--xc-text-color);
-    text-align: center;
-    outline: none;
-}
-
-.page-input::-webkit-outer-spin-button,
-.page-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-.page-input:focus {
-    border-color: #007fd4;
-}
-
 .page-size-selector {
     text-align: right;
-}
-
-.size-select {
-    padding: 4px 8px;
-    background-color: #2d2d30;
-    border: 1px solid #3c3c41;
-    border-radius: 3px;
-    color: var(--xc-text-color);
-    outline: none;
-}
-
-.size-select:focus {
-    border-color: #007fd4;
 }
 
 .multi-select-dropdown {
@@ -572,20 +556,6 @@ const applySettings = (): void => {
     background-color: #3c3c41;
 }
 
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--xc-text-color);
-    cursor: pointer;
-    font-size: small;
-    width: 100%;
-}
-
-.checkbox-label input[type='checkbox'] {
-    accent-color: #007fd4;
-}
-
 .settings-modal-overlay {
     position: fixed;
     top: 0;
@@ -619,19 +589,6 @@ const applySettings = (): void => {
     font-weight: 500;
 }
 
-.close-btn {
-    background: none;
-    border: none;
-    color: var(--xc-text-color);
-    cursor: pointer;
-    font-size: 16px;
-    padding: 0;
-}
-
-.close-btn:hover {
-    color: #fff;
-}
-
 .modal-body {
     padding: 16px;
 }
@@ -653,10 +610,6 @@ const applySettings = (): void => {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-}
-
-.level-checkboxes .checkbox-label {
-    font-size: 13px;
 }
 
 .modal-footer {

@@ -2,21 +2,21 @@
     <div class="thumbnail-wrapper">
         <div class="thumbnail-toolbar">
             <span class="xc-text toolbar-label">{{ t('thumbnailView.cardSize') }}:</span>
-            <button
-                class="size-btn"
+            <n-button
+                size="small"
                 :disabled="appStore.thumbnailCardSize <= 2"
                 @click="changeCardSize(-1)"
             >
                 -
-            </button>
+            </n-button>
             <span class="xc-text size-value">{{ appStore.thumbnailCardSize }}</span>
-            <button
-                class="size-btn"
+            <n-button
+                size="small"
                 :disabled="appStore.thumbnailCardSize >= 8"
                 @click="changeCardSize(1)"
             >
                 +
-            </button>
+            </n-button>
         </div>
         <div class="thumbnail-container xc-scrollbar">
             <div
@@ -202,30 +202,6 @@ onMounted(async (): Promise<void> => {
 
 .toolbar-label {
     font-size: 12px;
-}
-
-.size-btn {
-    width: 24px;
-    height: 24px;
-    border: 1px solid #555;
-    background-color: #333;
-    color: var(--xc-text-color);
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: bold;
-}
-
-.size-btn:hover:not(:disabled) {
-    background-color: #444;
-}
-
-.size-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 .size-value {

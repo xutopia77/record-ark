@@ -1,27 +1,23 @@
 <template>
     <div class="page-container">
         <div class="tag-info">
-            <div class="tag-input-section">
-                <input
-                    v-model="newTag"
-                    :placeholder="t('videoInfo.tagPlaceholder')"
-                    class="xc-text-input tag-input"
-                    type="text"
-                    @keyup.enter="btn_addTag"
-                />
-            </div>
+            <n-input
+                v-model:value="newTag"
+                size="small"
+                :placeholder="t('videoInfo.tagPlaceholder')"
+                @keyup.enter="btn_addTag"
+            />
             <div class="tags-container">
-                <div
+                <n-tag
                     v-for="(tag, index) in fileTags"
                     :key="index"
-                    class="xc-tag tag-item"
-                    :style="{
-                        backgroundColor: tag.color
-                    }"
+                    size="small"
+                    closable
+                    :color="{ color: tag.color, textColor: '#fff' }"
+                    @close="btn_removeTag(tag)"
                 >
-                    <span class="tag-name">{{ tag.name }}</span>
-                    <span class="tag-btn-del" @click="btn_removeTag(tag)">×</span>
-                </div>
+                    {{ tag.name }}
+                </n-tag>
             </div>
         </div>
     </div>
@@ -42,14 +38,15 @@ const fileTags = computed(() => {
 })
 
 function btn_removeTag(tag: Dty.Tag): void {
-    console.log(t('videoInfo.removeTag', { name: tag.name }))
-    
     if (appStore.curSltVideo == null) {
         util.addToastErr(t('videoInfo.selectFileFirst'))
         return
     }
-    
-    util.file_tag_delete(appStore.curSltVideo.id, tag.id, { bNeedUpdate: true, bNeedSltCurVideo: true })
+
+    util.file_tag_delete(appStore.curSltVideo.id, tag.id, {
+        bNeedUpdate: true,
+        bNeedSltCurVideo: true
+    })
 }
 
 const newTag = ref('')
@@ -63,12 +60,12 @@ const btn_addTag = async (): Promise<void> => {
         util.addToastErr(t('videoInfo.tagNameEmpty'))
         return
     }
-    
+
     if (appStore.curCheckedVideo.size === 0) {
         util.addToastErr(t('videoInfo.selectFileFirst'))
         return
     }
-    
+
     for (const item of appStore.curCheckedVideo) {
         const fileTag: Dty.FileTagsReqItem = {
             fileId: item.id,
@@ -76,7 +73,7 @@ const btn_addTag = async (): Promise<void> => {
         }
         req.fileTags.push(fileTag)
     }
-    
+
     await util.file_tags_set(req, { bNeedUpdate: true, bNeedSltCurVideo: true })
     newTag.value = ''
 }
@@ -104,65 +101,11 @@ const btn_addTag = async (): Promise<void> => {
     gap: 8px;
 }
 
-.tag-input-section {
-    width: 100%;
-}
-
-.tag-input {
-    width: 100%;
-    box-sizing: border-box;
-}
-
 .tags-container {
     width: 100%;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
     align-items: flex-start;
-}
-
-.tag-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 3px;
-    font-size: 12px;
-    white-space: nowrap;
-    user-select: none;
-}
-
-.tag-name {
-    flex: 1;
-}
-
-.tag-btn-del {
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-    line-height: 1;
-}
-
-.tag-btn-del:hover {
-    opacity: 1;
-}
-
-.page-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.page-container::-webkit-scrollbar-track {
-    background: #333;
-}
-
-.page-container::-webkit-scrollbar-thumb {
-    background: #555;
-    border-radius: 4px;
-}
-
-.page-container::-webkit-scrollbar-thumb:hover {
-    background: #666;
 }
 </style>

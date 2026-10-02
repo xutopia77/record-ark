@@ -2,13 +2,14 @@
     <div class="play-ctrl">
         <span class="xc-text" style="padding-right: 3px">{{ t('thumbCtrlBar.totalFiles') }}</span>
         <div class="right-area-ctrl">
-            <button
-                class="xc-button btn-noborder"
+            <n-button
+                size="small"
+                type="error"
                 :title="t('thumbCtrlBar.deleteFile')"
                 @click="btn_thumbDel()"
             >
                 {{ t('thumbCtrlBar.delete') }}
-            </button>
+            </n-button>
         </div>
     </div>
 </template>
@@ -49,10 +50,6 @@ function btn_thumbDel(): void {
 </script>
 
 <style scoped>
-.btn-noborder {
-    border: none;
-}
-
 .play-ctrl {
     height: 60px;
     width: 100%;

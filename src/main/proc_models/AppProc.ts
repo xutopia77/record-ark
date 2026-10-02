@@ -4,14 +4,13 @@ import mediaProc from './MediaProcess.js'
 import logger from './Logger'
 import appDb from './AppDb'
 import recordsProc from './RecordsProcess.js'
-import mp4Parser from './Mp4Parser.js'
 import * as Dty from '../../bridge/dataTypedef'
 import appCfg from './AppCfg.js'
 import { taskManager } from './TaskEvent'
 import { Util } from './Utils.js'
 import sqlite3 from 'sqlite3'
 import { open, Database } from 'sqlite'
-import { dialog, app } from 'electron'
+import { dialog } from 'electron'
 
 function logStatusRespReturn<T>(resp: Dty.Resp<T>): Dty.Resp<T> {
     if (resp.code === 0) {
@@ -383,30 +382,6 @@ class AppProc {
         } catch (error) {
             logger.error('write file err:', error)
         }
-    }
-
-    addRecentFile(filePath: string): void {
-        if (!appCfg.appInfo.recentFiles) {
-            appCfg.appInfo.recentFiles = []
-        }
-        const fileName = path.basename(filePath)
-        const existingIndex = appCfg.appInfo.recentFiles.findIndex((f) => f.path === filePath)
-
-        if (existingIndex >= 0) {
-            appCfg.appInfo.recentFiles.splice(existingIndex, 1)
-        }
-
-        const item: Dty.RecentItem = {
-            name: fileName,
-            path: filePath,
-            lastOpened: Date.now()
-        }
-        appCfg.appInfo.recentFiles.unshift(item)
-
-        if (appCfg.appInfo.recentFiles.length > 10) {
-            appCfg.appInfo.recentFiles = appCfg.appInfo.recentFiles.slice(0, 10)
-        }
-        this.saveAppCfg()
     }
 
     addRecentProject(prjFile: string): void {
@@ -1176,150 +1151,6 @@ class AppProc {
         return resp
     }
 
-    async handle_open_video_dialog(): Promise<Dty.Resp<string>> {
-        const resp = new Dty.Resp<string>()
-        const result = await dialog.showOpenDialog({
-            title: 'Select video file',
-            filters: [
-                { name: 'Video files', extensions: ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm'] }
-            ],
-            properties: ['openFile']
-        })
-        if (result.canceled || result.filePaths.length === 0) {
-            return resp.err('user canceled')
-        }
-        resp.data = result.filePaths[0]
-        return resp.success('success')
-    }
-
-    async handle_clip_project_save(req: Dty.Req<Dty.ClipProject>): Promise<Dty.Resp<string>> {
-        const resp = new Dty.Resp<string>()
-        if (!req.data) {
-            return resp.err('clip project data is null')
-        }
-
-        const clipProject = req.data
-        const now = new Date().toISOString()
-        clipProject.updatedAt = now
-
-        if (!clipProject.createdAt) {
-            clipProject.createdAt = now
-        }
-
-        let savePath = clipProject.path
-
-        if (!savePath) {
-            const videoDir = path.dirname(clipProject.filePath)
-            const defaultName =
-                clipProject.name ||
-                path.basename(clipProject.filePath, path.extname(clipProject.filePath))
-            const defaultPath = path.join(videoDir, `${defaultName}.sspj`)
-
-            const result = await dialog.showSaveDialog({
-                title: 'Save clip project',
-                defaultPath: defaultPath,
-                filters: [
-                    { name: 'Clip Project', extensions: ['sspj'] },
-                    { name: 'All Files', extensions: ['*'] }
-                ]
-            })
-
-            if (result.canceled || !result.filePath) {
-                return resp.err('user canceled')
-            }
-            savePath = result.filePath
-        }
-
-        try {
-            clipProject.path = savePath
-            await fs.promises.writeFile(savePath, JSON.stringify(clipProject, null, 2), 'utf-8')
-            this.addRecentProject(savePath)
-            resp.data = savePath
-            return resp.success('success')
-        } catch (err) {
-            logger.error('save clip project failed:', err)
-            return resp.err(`save failed: ${err}`)
-        }
-    }
-
-    async handle_clip_project_save_as(req: Dty.Req<Dty.ClipProject>): Promise<Dty.Resp<string>> {
-        const resp = new Dty.Resp<string>()
-        if (!req.data) {
-            return resp.err('clip project data is null')
-        }
-
-        const clipProject = req.data
-        const videoDir = path.dirname(clipProject.filePath)
-        const videoBasename = path.basename(
-            clipProject.filePath,
-            path.extname(clipProject.filePath)
-        )
-        const defaultPath = path.join(videoDir, `${videoBasename}.sspj`)
-
-        const result = await dialog.showSaveDialog({
-            title: 'Save clip project',
-            defaultPath: defaultPath,
-            filters: [
-                { name: 'Clip Project', extensions: ['sspj'] },
-                { name: 'All Files', extensions: ['*'] }
-            ]
-        })
-
-        if (result.canceled || !result.filePath) {
-            return resp.err('user canceled')
-        }
-
-        const now = new Date().toISOString()
-        clipProject.updatedAt = now
-        if (!clipProject.createdAt) {
-            clipProject.createdAt = now
-        }
-
-        try {
-            await fs.promises.writeFile(
-                result.filePath,
-                JSON.stringify(clipProject, null, 2),
-                'utf-8'
-            )
-            resp.data = result.filePath
-            return resp.success('success')
-        } catch (err) {
-            logger.error('save clip project as failed:', err)
-            return resp.err(`save failed: ${err}`)
-        }
-    }
-
-    async handle_clip_project_open(): Promise<Dty.Resp<Dty.ClipProject>> {
-        const resp = new Dty.Resp<Dty.ClipProject>()
-
-        const result = await dialog.showOpenDialog({
-            title: 'Open clip project',
-            filters: [{ name: 'Clip Project', extensions: ['sspj'] }],
-            properties: ['openFile']
-        })
-
-        if (result.canceled || result.filePaths.length === 0) {
-            return resp.err('user canceled')
-        }
-
-        const filePath = result.filePaths[0]
-
-        try {
-            const content = await fs.promises.readFile(filePath, 'utf-8')
-            const clipProject: Dty.ClipProject = JSON.parse(content)
-
-            if (!fs.existsSync(clipProject.filePath)) {
-                return resp.err(`video file not found: ${clipProject.filePath}`)
-            }
-
-            resp.data = clipProject
-            return resp.success('success')
-        } catch (err) {
-            logger.error('open clip project failed:', err)
-            return resp.err(`open failed: ${err}`)
-        }
-    }
-
     async handle_select_folder(mainWindow: Electron.BrowserWindow): Promise<Dty.Resp<string>> {
         const resp = new Dty.Resp<string>()
         const result = await dialog.showOpenDialog(mainWindow, {
@@ -1355,59 +1186,6 @@ class AppProc {
             { cmd: Dty.CmdType.createPrjWithPath, data: { dataRepo, projectPath } },
             Util.pathToLinuxStyle(projectPath)
         )
-    }
-
-    async handle_open_external_video(req: Dty.Req<Dty.Req_SltFile>): Promise<Dty.Resp<Dty.File>> {
-        const resp = new Dty.Resp<Dty.File>()
-        resp.data = new Dty.File()
-        if (req.data == null) {
-            return resp.err('req.data is null')
-        }
-        if (resp.data == undefined) {
-            return resp.err('resp.data is null')
-        }
-        const video_path = req.data?.filepath
-        if (video_path == null) {
-            return resp.err('filepath is null')
-        }
-        if (!fs.existsSync(video_path)) {
-            return resp.err('file not exist')
-        }
-        const ext = path.extname(video_path).toLowerCase()
-        const videoExts = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm']
-        if (!videoExts.includes(ext)) {
-            return resp.err('not a video file')
-        }
-        try {
-            const mediaInfo = await mediaProc.getVideoInfo(video_path)
-            const stat = fs.statSync(video_path)
-            resp.data.name = path.basename(video_path)
-            resp.data.path = video_path
-            resp.data.size = stat.size
-            resp.data.mediaInfo = mediaInfo
-            resp.data.startTimeSec = 0
-            resp.data.endTimeSec = mediaInfo.duration
-            resp.data.duration = mediaInfo.duration
-            resp.data.splitInfo = new Dty.SqlitInfos()
-            resp.data.splitInfo.splits = []
-            const itemInfo: Dty.SplitInfo = {
-                startTime: 0,
-                endTime: mediaInfo.duration,
-                duration: mediaInfo.duration,
-                percent: 100,
-                frameNum: Math.round(mediaInfo.duration * (mediaInfo.video?.frame_rate || 25)),
-                color: '#669999',
-                currentTime: 0,
-                frameIdx: 0,
-                isDelete: false
-            }
-            resp.data.splitInfo.splits.push(itemInfo)
-            this.addRecentFile(video_path)
-            return resp.success('success')
-        } catch (error) {
-            logger.error('get video info error:', error)
-            return resp.err('get video info error')
-        }
     }
 
     /**
@@ -1792,37 +1570,6 @@ class AppProc {
         return resp
     }
 
-    async handle_get_key_frame_info(
-        req: Dty.Req<Dty.Req_FrameInfo>
-    ): Promise<Dty.Resp<Dty.FrameInfo>> {
-        const resp = new Dty.Resp<Dty.FrameInfo>()
-        resp.bOver = false
-        const filePath = req.data?.filepath
-        if (filePath == null) {
-            resp.code = 1
-            resp.status = 'filePath is null'
-            return resp
-        }
-        mediaProc
-            .get_frame_info(filePath)
-            .then((resp: Dty.Resp<Dty.FrameInfo>) => {
-                Util.notifyRender(JSON.stringify({ cmd: req.cmd, data: resp }))
-            })
-            .catch((error: unknown) => {
-                logger.error('get frame info err:', error)
-                resp.err(error as string)
-                Util.notifyRender(
-                    JSON.stringify({
-                        cmd: req.cmd,
-                        data: resp
-                    })
-                )
-            })
-        resp.success()
-        resp.bOver = false
-        return resp
-    }
-
     handle_tiny2DbStop(): void {
         bTiny2DbStop = true
     }
@@ -1960,8 +1707,8 @@ class AppProc {
 
     async handle_open_prj(
         mainWindow: Electron.BrowserWindow
-    ): Promise<Dty.Resp<Dty.Prj | Dty.ClipProject>> {
-        const resp = new Dty.Resp<Dty.Prj | Dty.ClipProject>()
+    ): Promise<Dty.Resp<Dty.Prj>> {
+        const resp = new Dty.Resp<Dty.Prj>()
         try {
             const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
                 properties: ['openFile'],
@@ -1976,20 +1723,7 @@ class AppProc {
             }
 
             const filePath = filePaths[0]
-            const fileContent = await fs.promises.readFile(filePath, 'utf-8')
-            const projectData = JSON.parse(fileContent)
-
-            if (projectData.type === Dty.ProjectType.ClipEdit) {
-                const clipProject = projectData as Dty.ClipProject
-                if (!fs.existsSync(clipProject.filePath)) {
-                    return resp.err(`video file not found: ${clipProject.filePath}`)
-                }
-                this.addRecentProject(filePath)
-                resp.data = clipProject
-                return resp.success('success')
-            } else {
-                return await this.openProjectByPath(filePath)
-            }
+            return await this.openProjectByPath(filePath)
         } catch (error) {
             logger.error('Error opening project file:', error)
             return resp.err(
@@ -1998,27 +1732,15 @@ class AppProc {
         }
     }
 
-    async openProjectByPath(prjFile: string): Promise<Dty.Resp<Dty.Prj | Dty.ClipProject>> {
-        const resp = new Dty.Resp<Dty.Prj | Dty.ClipProject>()
+    async openProjectByPath(prjFile: string): Promise<Dty.Resp<Dty.Prj>> {
+        const resp = new Dty.Resp<Dty.Prj>()
         try {
             if (!fs.existsSync(prjFile)) {
                 return resp.err('Project file not found')
             }
 
             const fileContent = await fs.promises.readFile(prjFile, 'utf-8')
-            const projectData = JSON.parse(fileContent)
-
-            if (projectData.type === Dty.ProjectType.ClipEdit) {
-                const clipProject = projectData as Dty.ClipProject
-                if (!fs.existsSync(clipProject.filePath)) {
-                    return resp.err(`video file not found: ${clipProject.filePath}`)
-                }
-                this.addRecentProject(prjFile)
-                resp.data = clipProject
-                return resp.success('success')
-            }
-
-            const prjInfo = projectData as Dty.Prj
+            const prjInfo = JSON.parse(fileContent) as Dty.Prj
             const prjFilePath = path.dirname(prjFile)
             prjInfo.path = prjFilePath
             appCfg.prj = prjInfo
@@ -2150,11 +1872,6 @@ class AppProc {
             case Dty.CmdType.appConfigSave:
                 logger.info(`cmd:${cmd}:${cseq}`)
                 return this.cmdRespMake(await this.handle_app_config_save(req))
-            case Dty.CmdType.get_key_frame_info: {
-                const cmdReq = convertCmdRequest<Dty.Req_FrameInfo>(req)
-                logger.info(`cmd:${cmd}:${cseq}, ${cmdReq.data?.filepath}`)
-                return this.cmdRespMake(await this.handle_get_key_frame_info(cmdReq))
-            }
             case Dty.CmdType.prjOpen: {
                 logger.info(`cmd:${cmd}:${cseq}, ${req}`)
                 return this.cmdRespMake(await this.handle_open_prj(mainWin!))
@@ -2192,11 +1909,6 @@ class AppProc {
             //     logger.info(`cmd:${cmd}:${cseq}, ${req}`)
             //     return cmdRespMake(await handle_video_event_detect())
             // }
-            case Dty.CmdType.videoCut: {
-                const cmdReq = convertCmdRequest<Dty.Req_CutVideo>(req)
-                logger.info(`cmd:${cmd}:${cseq}, ${cmdReq.data?.filepath}`)
-                return this.cmdRespMake(await recordsProc.start_cut_video(cmdReq))
-            }
             case Dty.CmdType.videoDel: {
                 const cmdReq = convertCmdRequest<Dty.DeleteFileReq>(req)
                 logger.info(`cmd:${cmd}:${cseq}, length=${cmdReq.data?.files.length}`)
@@ -2211,29 +1923,6 @@ class AppProc {
                 const cmdReq = convertCmdRequest<Dty.Req_SltFile>(req)
                 logger.info(`cmd:${cmd}:${cseq}, ${cmdReq.data?.filepath}`)
                 return this.cmdRespMake(await this.handle_select_video(cmdReq))
-            }
-            case Dty.CmdType.openExternalVideo: {
-                const cmdReq = convertCmdRequest<Dty.Req_SltFile>(req)
-                logger.info(`cmd:${cmd}:${cseq}, ${cmdReq.data?.filepath}`)
-                return this.cmdRespMake(await this.handle_open_external_video(cmdReq))
-            }
-            case Dty.CmdType.openVideoDialog: {
-                logger.info(`cmd:${cmd}:${cseq}`)
-                return this.cmdRespMake(await this.handle_open_video_dialog())
-            }
-            case Dty.CmdType.clipProjectSave: {
-                const cmdReq = convertCmdRequest<Dty.ClipProject>(req)
-                logger.info(`cmd:${cmd}:${cseq}, ${cmdReq.data?.filePath}`)
-                return this.cmdRespMake(await this.handle_clip_project_save(cmdReq))
-            }
-            case Dty.CmdType.clipProjectSaveAs: {
-                const cmdReq = convertCmdRequest<Dty.ClipProject>(req)
-                logger.info(`cmd:${cmd}:${cseq}`)
-                return this.cmdRespMake(await this.handle_clip_project_save_as(cmdReq))
-            }
-            case Dty.CmdType.clipProjectOpen: {
-                logger.info(`cmd:${cmd}:${cseq}`)
-                return this.cmdRespMake(await this.handle_clip_project_open())
             }
             case Dty.CmdType.prjSync: {
                 const cmdReq = convertCmdRequest<Dty.SyncPrjReq>(req)
@@ -2284,85 +1973,11 @@ class AppProc {
                 logger.info(`cmd:${cmd}:${cseq}`)
                 return this.cmdRespMake(await this.handle_create_prj_with_path(cmdReq))
             }
-            case Dty.CmdType.parseMp4Box: {
-                const cmdReq = convertCmdRequest<Dty.ParseMp4BoxReq>(req)
-                logger.info(`cmd:${cmd}:${cseq}, path:${cmdReq.data?.filePath}`)
-                return this.cmdRespMake(await this.handle_parse_mp4_box(cmdReq))
-            }
-            case Dty.CmdType.analyzeFrames: {
-                const cmdReq = convertCmdRequest<Dty.AnalyzeFramesReq>(req)
-                logger.info(`cmd:${cmd}:${cseq}, path:${cmdReq.data?.filePath}`)
-                return this.cmdRespMake(await this.handle_analyze_frames(cmdReq))
-            }
-            case Dty.CmdType.screenshotSave: {
-                const cmdReq = convertCmdRequest<Dty.ScreenshotSaveReq>(req)
-                logger.info(`cmd:${cmd}:${cseq}, format:${cmdReq.data?.format}`)
-                return this.cmdRespMake(await this.handle_screenshot_save(cmdReq))
-            }
             default: {
                 console.log(`Unknown event: ${cmd}:${cseq}`)
                 const resp = new Dty.Resp()
                 return resp.err(`Unknown event: ${cmd}`)
             }
-        }
-    }
-
-    async handle_parse_mp4_box(
-        req: Dty.Req<Dty.ParseMp4BoxReq>
-    ): Promise<Dty.Resp<Dty.ParseMp4BoxResp>> {
-        const resp = new Dty.Resp<Dty.ParseMp4BoxResp>()
-        if (!req.data?.filePath) {
-            return resp.err('filePath is required')
-        }
-        return await mp4Parser.parseMp4Box(req.data.filePath)
-    }
-
-    async handle_analyze_frames(
-        req: Dty.Req<Dty.AnalyzeFramesReq>
-    ): Promise<Dty.Resp<Dty.AnalyzeFramesResp>> {
-        const resp = new Dty.Resp<Dty.AnalyzeFramesResp>()
-        if (!req.data?.filePath) {
-            return resp.err('filePath is required')
-        }
-        return await mp4Parser.analyzeFrames(
-            req.data.filePath,
-            req.data.page || 1,
-            req.data.pageSize || 200,
-            req.data.startTime
-        )
-    }
-
-    async handle_screenshot_save(
-        req: Dty.Req<Dty.ScreenshotSaveReq>
-    ): Promise<Dty.Resp<Dty.ScreenshotSaveResp>> {
-        const resp = new Dty.Resp<Dty.ScreenshotSaveResp>()
-        
-        if (!req.data?.imageData) {
-            return resp.err('imageData is required')
-        }
-
-        try {
-            const userPicturesPath = app.getPath('pictures')
-            const now = new Date()
-            const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-            const timeStr = `_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
-            
-            const filename = req.data.filename || `stream-seek_${dateStr}`
-            const extension = req.data.format === 'png' ? 'png' : 'jpg'
-            const fullFilename = `${filename}${timeStr}.${extension}`
-            const filepath = path.join(userPicturesPath, fullFilename)
-
-            const base64Data = req.data.imageData.replace(/^data:image\/\w+;base64,/, '')
-            const buffer = Buffer.from(base64Data, 'base64')
-
-            await fs.promises.writeFile(filepath, buffer)
-            
-            resp.data = { filepath: filepath }
-            logger.info(`Screenshot saved to: ${filepath}`)
-            return resp.success('screenshot saved successfully')
-        } catch (error) {
-            logger.error('Failed to save screenshot:', error)
-            return resp.err(`Failed to save screenshot: ${error}`)
         }
     }
 }

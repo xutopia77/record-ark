@@ -10,11 +10,6 @@
                 <div class="start-section">
                     <h2 class="section-title">{{ t('welcome.start') }}</h2>
                     <div class="start-actions">
-                        <button class="start-action" @click="openVideoFile">
-                            <span class="action-icon">📹</span>
-                            <span class="action-text">{{ t('welcome.openVideoFile') }}</span>
-                            <span class="action-desc">{{ t('welcome.openVideoFileDesc') }}</span>
-                        </button>
                         <button class="start-action" @click="openProject">
                             <span class="action-icon">📁</span>
                             <span class="action-text">{{ t('welcome.openProject') }}</span>
@@ -32,23 +27,19 @@
                     <h2 class="section-title">{{ t('welcome.recent') }}</h2>
                     <div class="recent-list">
                         <div
-                            v-for="item in recentItems"
+                            v-for="item in recentProjects"
                             :key="item.path"
                             class="recent-item"
-                            @click="
-                                item.type === 'file'
-                                    ? openRecentFile(item.path)
-                                    : openRecentProject(item.path)
-                            "
+                            @click="openRecentProject(item.path)"
                         >
-                            <span class="item-icon">{{ item.type === 'file' ? '📹' : '📁' }}</span>
+                            <span class="item-icon">📁</span>
                             <div class="item-info">
                                 <span class="item-name">{{ item.name }}</span>
                                 <span class="item-path">{{ item.path }}</span>
                             </div>
                             <span class="item-time">{{ formatTime(item.lastOpened) }}</span>
                         </div>
-                        <div v-if="recentItems.length === 0" class="empty-hint">
+                        <div v-if="recentProjects.length === 0" class="empty-hint">
                             {{ t('welcome.noRecentItems') }}
                         </div>
                     </div>
@@ -79,17 +70,9 @@ const { t } = useI18n()
 
 const showCreateModal = ref(false)
 
-interface RecentItemWithType extends Dty.RecentItem {
-    type: 'file' | 'project'
-}
-
-const recentItems = computed((): RecentItemWithType[] => {
-    const files = (appStore.recentFiles || []).map((f) => ({ ...f, type: 'file' as const }))
-    const projects = (appStore.recentProjects || []).map((p) => ({
-        ...p,
-        type: 'project' as const
-    }))
-    return [...files, ...projects]
+const recentProjects = computed((): Dty.RecentItem[] => {
+    return (appStore.recentProjects || [])
+        .slice()
         .sort((a, b) => (b.lastOpened || 0) - (a.lastOpened || 0))
         .slice(0, 10)
 })
@@ -112,14 +95,14 @@ const formatTime = (timestamp: number): string => {
     }
 }
 
-const openVideoFile = async (): Promise<void> => {
-    const req: Dty.Req = {
-        cmd: Dty.CmdType.openVideoDialog
+const clearPrjState = (): void => {
+    if (appStore.curSltVideo) {
+        appStore.curSltVideo = null
+        appStore.curSltVideoName4Play = ''
+        util.clear_cur_slt_video_info(null)
     }
-    const response: Dty.Resp<string> = await IpcApi.trigger_event(req)
-    if (response.code === 0 && response.data) {
-        await openRecentFile(response.data)
-    }
+    appStore.videoList = []
+    appStore.videoTotalNum = 0
 }
 
 const openProject = async (): Promise<void> => {
@@ -136,7 +119,9 @@ const openProject = async (): Promise<void> => {
 
         router.push('/')
     } else {
-        util.addToastErr(`${t('welcome.openProjectFailed')}: ${response.status}`)
+        if (response.status !== 'user canceled') {
+            util.addToastErr(`${t('welcome.openProjectFailed')}: ${response.status}`)
+        }
     }
 }
 
@@ -145,79 +130,22 @@ const onProjectCreated = async (): Promise<void> => {
     router.push('/')
 }
 
-const openRecentFile = async (filePath: string): Promise<void> => {
-    if (appStore.curSltVideo) {
-        appStore.curSltVideo = null
-        appStore.curSltVideoName4Play = ''
-        util.clear_cur_slt_video_info(null)
-    }
-    appStore.videoList = []
-    appStore.videoTotalNum = 0
-    appStore.clipProject = null
-
-    const req: Dty.Req<Dty.Req_SltFile> = {
-        cmd: Dty.CmdType.openExternalVideo,
-        data: { filepath: filePath }
-    }
-    const response: Dty.Resp<Dty.File> = await IpcApi.trigger_event(req)
-    if (response.code === 0 && response.data) {
-        appStore.curSltVideo = response.data
-        appStore.curSltVideoName4Play = response.data.name
-        appStore.appInfo.prjFile = ''
-        appStore.prj = null
-        router.push('/')
-    } else {
-        util.addToastErr(`${t('homeEditor.openVideoFailed')}: ${response.status}`)
-    }
-}
-
 const openRecentProject = async (projectPath: string): Promise<void> => {
     const req: Dty.Req<Dty.Req_OpenPrj> = {
         cmd: Dty.CmdType.prjOpenByPath,
         data: { prjFile: projectPath }
     }
-    const response: Dty.Resp<Dty.Prj | Dty.ClipProject> = await IpcApi.trigger_event(req)
+    const response: Dty.Resp<Dty.Prj> = await IpcApi.trigger_event(req)
     if (response.code === 0 && response.data) {
-        if (appStore.curSltVideo) {
-            appStore.curSltVideo = null
-            appStore.curSltVideoName4Play = ''
-            util.clear_cur_slt_video_info(null)
-        }
-        appStore.videoList = []
-        appStore.videoTotalNum = 0
+        clearPrjState()
 
-        if (response.data.type === Dty.ProjectType.FileManagement) {
-            const prj = response.data as Dty.Prj
-            appStore.prj = prj
-            appStore.appInfo.prjFile = projectPath
-            appStore.clipProject = null
+        const prj = response.data
+        appStore.prj = prj
+        appStore.appInfo.prjFile = projectPath
 
-            const searchReq = new Dty.FilesReq()
-            searchReq.status = [appStore.fileSearchStatus]
-            await util.files_get(searchReq)
-        } else if (response.data.type === Dty.ProjectType.ClipEdit) {
-            const clipProject = response.data as Dty.ClipProject
-            appStore.clipProject = clipProject
-            appStore.prj = null
-            appStore.appInfo.prjFile = ''
-
-            const openReq: Dty.Req<Dty.Req_SltFile> = {
-                cmd: Dty.CmdType.openExternalVideo,
-                data: { filepath: clipProject.filePath }
-            }
-            const openResp: Dty.Resp<Dty.File> = await IpcApi.trigger_event(openReq)
-            if (openResp.code === 0 && openResp.data) {
-                appStore.curSltVideo = openResp.data
-                appStore.curSltVideoName4Play = openResp.data.name
-
-                if (clipProject.splitInfo && clipProject.splitInfo.length > 0) {
-                    if (!appStore.curSltVideo.splitInfo) {
-                        appStore.curSltVideo.splitInfo = new Dty.SqlitInfos()
-                    }
-                    appStore.curSltVideo.splitInfo.splits = clipProject.splitInfo
-                }
-            }
-        }
+        const searchReq = new Dty.FilesReq()
+        searchReq.status = [appStore.fileSearchStatus]
+        await util.files_get(searchReq)
 
         router.push('/')
     } else {
@@ -346,23 +274,6 @@ const loadProjectData = async (): Promise<void> => {
 .recent-list {
     max-height: 240px;
     overflow-y: auto;
-}
-
-.recent-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-.recent-list::-webkit-scrollbar-track {
-    background: #1e1e1e;
-}
-
-.recent-list::-webkit-scrollbar-thumb {
-    background: #3c3c3c;
-    border-radius: 3px;
-}
-
-.recent-list::-webkit-scrollbar-thumb:hover {
-    background: #4a4a4a;
 }
 
 .recent-item {

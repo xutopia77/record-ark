@@ -20,19 +20,21 @@
         <div class="setting-card">
             <h3 class="setting-title">{{ t('adminSetting.syncOptions') }}</h3>
             <div class="option-item">
-                <input v-model="bNeedClassifyFile" type="checkbox" class="xc-check-input" />
+                <n-switch v-model:value="bNeedClassifyFile" size="small" />
                 <span class="option-label">{{ t('adminSetting.fileOrganize') }}</span>
             </div>
             <div class="option-item">
-                <input v-model="bNeedGenThumbnail" type="checkbox" class="xc-check-input" />
+                <n-switch v-model:value="bNeedGenThumbnail" size="small" />
                 <span class="option-label">{{ t('adminSetting.generateThumbnail') }}</span>
             </div>
-            <button class="xc-button primary" type="button" @click="btnclk_sync_work()">
-                {{ t('adminSetting.syncProject') }}
-            </button>
-            <button class="xc-button" type="button" @click="btnclk_syncStop()">
-                {{ t('adminSetting.stopSync') }}
-            </button>
+            <div class="action-buttons">
+                <n-button size="small" type="primary" @click="btnclk_sync_work()">
+                    {{ t('adminSetting.syncProject') }}
+                </n-button>
+                <n-button size="small" @click="btnclk_syncStop()">
+                    {{ t('adminSetting.stopSync') }}
+                </n-button>
+            </div>
         </div>
     </div>
 </template>
@@ -188,6 +190,12 @@ onMounted(() => {})
     margin-left: 6px; /* Reduce left margin */
     color: #ccc;
     font-size: 13px; /* Slightly reduce font */
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
 }
 
 .mode-selector {

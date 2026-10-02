@@ -1,113 +1,82 @@
 <template>
     <div class="play-ctrl">
         <!-- Play/Pause button -->
-        <button class="xc-button btn-noborder" title="Play/Pause" @click="btnclk_toggle_play">
+        <n-button quaternary size="small" title="Play/Pause" @click="btnclk_toggle_play">
             {{ iconPlayPause }}
-        </button>
+        </n-button>
         <!-- File switch -->
-        <button class="xc-button btn-noborder" title="Previous file" @click="changeFile('previous')">
+        <n-button quaternary size="small" title="Previous file" @click="changeFile('previous')">
             ⏮
-        </button>
-        <button class="xc-button btn-noborder" title="Stop" @click="btnclk_stop_play()">
-            ⏹
-        </button>
-        <button class="xc-button btn-noborder" title="Next file" @click="changeFile('next')">
-            ⏭
-        </button>
+        </n-button>
+        <n-button quaternary size="small" title="Stop" @click="btnclk_stop_play()">⏹</n-button>
+        <n-button quaternary size="small" title="Next file" @click="changeFile('next')">⏭</n-button>
         <!-- Speed selection -->
-        <select
-            v-model="appStore.videoPlayCtrl.playbackRate"
-            class="xc-select"
-            @change="changePlaybackRate"
-        >
-            <option value="0.5">0.5x</option>
-            <option value="1">1x</option>
-            <option value="1.5">1.5x</option>
-            <option value="2">2x</option>
-            <option value="4">4x</option>
-            <option value="6">6x</option>
-        </select>
+        <n-select
+            v-model:value="appStore.videoPlayCtrl.playbackRate"
+            size="tiny"
+            class="speed-select"
+            :options="speedOptions"
+            :consistent-menu-width="false"
+        />
         <!-- Volume control -->
-        <button
-            class="xc-button btn-noborder"
-            :title="appStore.videoPlayCtrl.muted ? t('playCtrl.unmute') : t('playCtrl.mute')"
-            @click="toggleMute"
-        >
+        <n-button quaternary size="small" :title="t('playCtrl.volume')" @click="toggleMute">
             {{ volumeIcon }}
-        </button>
-        <input
-            v-model.number="appStore.videoPlayCtrl.volume"
-            type="range"
+        </n-button>
+        <n-slider
+            v-model:value="appStore.videoPlayCtrl.volume"
             class="volume-slider"
-            min="0"
-            max="1"
-            step="0.01"
-            :title="t('playCtrl.volume')"
-            @input="changeVolume"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            :tooltip="false"
+            @update:value="changeVolume"
         />
         <!-- Playback time -->
-        <span class="xc-text" style="padding-right: 3px">{{ curTime }}/{{ videoDuration }}</span>
+        <span class="xc-text">{{ curTime }}/{{ videoDuration }}</span>
         <!-- Frame control playback -->
-        <button class="xc-button btn-noborder" title="Previous frame" @click="previousFrame">◀️</button>
-        <button class="xc-button btn-noborder" title="Next frame" @click="nextFrame">▶️</button>
-        <span class="xc-text" style="padding-right: 3px; color: darkcyan">{{ frameInfo }}</span>
-        <span class="xc-text" style="padding-right: 3px; color: chocolate">{{ frameRate }}</span>
-        <!-- Show I-frame -->
-        <button class="xc-button btn-noborder" title="Show key frame" @click="btn_showKeyFrame">
-            🔑
-        </button>
+        <n-button quaternary size="small" title="Previous frame" @click="previousFrame">◀️</n-button>
+        <n-button quaternary size="small" title="Next frame" @click="nextFrame">▶️</n-button>
+        <span class="xc-text" style="color: darkcyan">{{ frameInfo }}</span>
+        <span class="xc-text" style="color: chocolate">{{ frameRate }}</span>
         <div v-if="appStore.isProjectMode" class="right-area-ctrl">
-            <button
-                class="xc-button btn-noborder"
+            <n-button
+                quaternary
+                size="small"
                 title="Set file level"
                 @click="btnclk_set_file_level"
             >
                 ⭐
-            </button>
-            <select v-model="fileLevel" class="xc-select">
-                <option v-for="index in 6" :key="index" :value="index - 1">{{ index - 1 }}☆</option>
-            </select>
-
-            <button
-                class="xc-button btn-noborder"
+            </n-button>
+            <n-select
+                v-model:value="fileLevel"
+                size="tiny"
+                class="mini-select"
+                :options="levelOptions"
+                :consistent-menu-width="false"
+            />
+            <n-button
+                quaternary
+                size="small"
                 title="Delete selected files"
                 @click="btnclk_delSltVideos"
             >
                 🗑
-            </button>
-            <select v-model="delType" class="xc-select" title="Delete method" @change="changeDelType">
-                <option value="delVideo" title="Move to recycle bin">🗑</option>
-                <option
-                    value="delVideoAndThumb"
-                    title="Move to recycle bin and delete thumbnails"
-                    :disabled="!(appStore.fileSearchStatus == Dty.Fstatus.Deleted)"
-                >
-                    🗑+
-                </option>
-            </select>
-
-            <button
-                class="xc-button btn-noborder"
-                title="Show file list"
-                @click="btnclk_chg_panel(Dty.WorkPanel.List)"
-            >
-                🛢️
-            </button>
-            <button
-                v-if="!appStore.isProjectMode"
-                class="xc-button btn-noborder"
-                title="Show file operations"
-                @click="btnclk_chg_panel(Dty.WorkPanel.Operate)"
-            >
-                🛠️
-            </button>
-            <button
-                class="xc-button btn-noborder"
+            </n-button>
+            <n-select
+                v-model:value="delType"
+                size="tiny"
+                class="mini-select"
+                :options="delTypeOptions"
+                :consistent-menu-width="false"
+            />
+            <n-button
+                quaternary
+                size="small"
                 title="Edit file tags"
                 @click="btnclk_chg_panel(Dty.WorkPanel.VideoInfo)"
             >
                 🏷️
-            </button>
+            </n-button>
         </div>
     </div>
 </template>
@@ -123,8 +92,18 @@ import * as Dty from '../../../../bridge/dataTypedef'
 
 const { t } = useI18n()
 
-// Change playback speed
-const changePlaybackRate = (): void => {}
+// Playback speed options
+const speedOptions = [
+    { label: '0.5x', value: 0.5 },
+    { label: '1x', value: 1 },
+    { label: '1.5x', value: 1.5 },
+    { label: '2x', value: 2 },
+    { label: '4x', value: 4 },
+    { label: '6x', value: 6 }
+]
+
+// File level options (0-5)
+const levelOptions = Array.from({ length: 6 }, (_, i) => ({ label: `${i}☆`, value: i }))
 
 // volume control
 const toggleMute = (): void => {
@@ -151,19 +130,26 @@ const volumeIcon = computed(() => {
     }
 })
 
-let curTime = computed(() => {
-    let str = '00:00:00.000'
-    str = Dty.Utils.time_2_msec_str(appStore.videoPlayCtrl.curTime)
-    return str
+const curTime = computed(() => {
+    return Dty.Utils.time_2_msec_str(appStore.videoPlayCtrl.curTime)
 })
-let videoDuration = computed(() => {
+
+const videoDuration = computed(() => {
     let str = '00:00:00.000'
     if (appStore.curSltVideo?.mediaInfo != null) {
         str = Dty.Utils.time_2_msec_str(appStore.curSltVideo.mediaInfo.duration)
     }
     return str
 })
-// let videoDuration = computed(() => formatTime(appStore.curSltVideo?.mediaInfo.duration))
+
+const frameInfo = computed(() => genFrame())
+
+const frameRate = computed(() => {
+    if (appStore.curSltVideo == null) return ''
+    if (appStore.curSltVideo.mediaInfo == null) return ''
+    const frameRateStr = appStore.curSltVideo.mediaInfo.video.frame_rate.toFixed(3)
+    return `${frameRateStr}fps`
+})
 
 function genFrame(): string {
     if (appStore.curSltVideo == null) return ''
@@ -174,14 +160,6 @@ function genFrame(): string {
     const frame = Math.floor(curTime * frameRate)
     return `${frame}/${frameCount}f`
 }
-let frameInfo = computed(() => genFrame())
-
-let frameRate = computed(() => {
-    if (appStore.curSltVideo == null) return ''
-    if (appStore.curSltVideo.mediaInfo == null) return ''
-    const frameRateStr = appStore.curSltVideo.mediaInfo.video.frame_rate.toFixed(3)
-    return `${frameRateStr}fps`
-})
 
 function nextFrame(): void {
     if (appStore.curSltVideo == null) {
@@ -224,16 +202,12 @@ const iconPlayPause = ref('▶')
 watch(
     () => appStore.videoPlayCtrl.isPlay,
     (isPlay: boolean) => {
-        if (isPlay) {
-            iconPlayPause.value = '⏸'
-        } else {
-            iconPlayPause.value = '▶'
-        }
+        iconPlayPause.value = isPlay ? '⏸' : '▶'
     }
 )
 
 // ==================================== File level setting
-const fileLevel = ref(1)
+const fileLevel = ref(0)
 async function btnclk_set_file_level(): Promise<void> {
     const req = new Dty.FileTagsReq()
     const levelVal = fileLevel.value
@@ -241,7 +215,7 @@ async function btnclk_set_file_level(): Promise<void> {
         util.addToastErr(t('playCtrl.levelRangeError'))
         return
     }
-    let tagName = `sys_score${levelVal}`
+    const tagName = `sys_score${levelVal}`
     for (const item of appStore.curCheckedVideo) {
         const fileTag: Dty.FileTagsReqItem = {
             fileId: item.id,
@@ -255,12 +229,6 @@ async function btnclk_set_file_level(): Promise<void> {
     }
     await util.file_tags_set(req, { bNeedSltCurVideo: true, bNeedUpdate: true })
     appStore.curCheckedVideo.clear()
-}
-
-// ====================================
-
-function btn_showKeyFrame(): void {
-    appStore.bShowKeyFrameInfo = !appStore.bShowKeyFrameInfo
 }
 
 // ==================================== File switch
@@ -307,13 +275,16 @@ function btnclk_chg_panel(model: Dty.WorkPanel): void {
     appStore.rightPanel = model
 }
 
-let delType = ref<'delVideo' | 'delVideoAndThumb'>('delVideo')
+const delType = ref<'delVideo' | 'delVideoAndThumb'>('delVideo')
 
-function changeDelType(): void {
-    let str = t('playCtrl.moveToTrash')
-    if (delType.value == 'delVideoAndThumb') str = t('playCtrl.moveToTrashWithThumb')
-    util.addToastInfo(`${t('playCtrl.deleteMethod')}: ${str}`)
-}
+const delTypeOptions = computed(() => [
+    { label: '🗑', value: 'delVideo' },
+    {
+        label: '🗑+',
+        value: 'delVideoAndThumb',
+        disabled: !(appStore.fileSearchStatus == Dty.Fstatus.Deleted)
+    }
+])
 
 function btnclk_delSltVideos(): void {
     const curCheckedVideo = appStore.curCheckedVideo
@@ -340,63 +311,45 @@ function btnclk_delSltVideos(): void {
     }
     req.bDelThumb = false
     if (delType.value == 'delVideoAndThumb') req.bDelThumb = true
-    console.log('delete file req', req)
     util.filesDel(req)
     appStore.curCheckedVideo.clear()
 }
 </script>
 
 <style scoped>
-.btn-noborder {
-    border: none;
-}
-
 .play-ctrl {
     height: 50px;
     width: 100%;
     margin: 0;
-    padding: 0;
+    padding: 0 4px;
     display: flex;
     align-items: center;
+    gap: 2px;
     background-color: #252526;
-    /* VSCode sidebar background color */
 }
 
 .right-area-ctrl {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.speed-select {
+    width: 70px;
+}
+
+.mini-select {
+    width: 64px;
 }
 
 .volume-slider {
     width: 60px;
-    height: 4px;
     margin: 0 8px;
-    cursor: pointer;
-    -webkit-appearance: none;
-    appearance: none;
-    background: #3c3c3c;
-    border-radius: 2px;
 }
 
-.volume-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #0e639c;
-    cursor: pointer;
-}
-
-.volume-slider::-webkit-slider-thumb:hover {
-    background: #1177bb;
-}
-
-.volume-slider::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #0e639c;
-    cursor: pointer;
-    border: none;
+.xc-text {
+    padding-right: 3px;
+    white-space: nowrap;
 }
 </style>

@@ -2,7 +2,6 @@ export enum CmdType {
     heartBeat = 'heart_beat',
     app_start = 'app_start',
     appConfigSave = 'app_config_save',
-    get_key_frame_info = 'get_key_frame_info',
     tags_get = 'tags_get',
     tagUpdate = 'tag_update',
     tagDelete = 'tag_delete',
@@ -12,9 +11,6 @@ export enum CmdType {
     tagsSearch = 'search_tag',
     search_file = 'search_file',
     sltVideo = 'slt_video',
-    openExternalVideo = 'open_external_video',
-    openVideoDialog = 'open_video_dialog',
-    videoCut = 'cut_video',
     thumbGet = 'thumbGet',
     thumbImgGet = 'thumb_img_get',
     thumbDel = 'thumbDel',
@@ -31,13 +27,7 @@ export enum CmdType {
     tinyFileDbStop = 'tinyFileDbStop',
     selectFolder = 'select_folder',
     createPrjWithPath = 'create_prj_with_path',
-    prjSave = 'prj_save',
-    clipProjectSave = 'clip_project_save',
-    clipProjectSaveAs = 'clip_project_save_as',
-    clipProjectOpen = 'clip_project_open',
-    parseMp4Box = 'parse_mp4_box',
-    analyzeFrames = 'analyze_frames',
-    screenshotSave = 'screenshot_save'
+    prjSave = 'prj_save'
 }
 
 export class RecentItem {
@@ -48,7 +38,6 @@ export class RecentItem {
 
 export class AppInfo {
     prjFile: string = ''
-    recentFiles: RecentItem[] = []
     recentProjects: RecentItem[] = []
     language: LangType = 'en-US'
 }
@@ -81,15 +70,6 @@ export class ThumbImgGetReq {
 export class ThumbImgGetResp {
     data: string = '' // base64 encoded image data
     mimeType: string = 'image/jpeg'
-}
-
-export class FileInfo {
-    title: string = ''
-    filePath: string = '' // File path, assigned by backend
-    // src: string = '' // File URL assembled by frontend
-    size: number = 0
-    // birthtime: string
-    // mtime: string
 }
 
 // Define an enum, numeric type, representing file status
@@ -133,8 +113,6 @@ export class File {
     duration: number = 0 // Video duration
     size: number = 0 // Video size in bytes
     mediaInfo: MediaInfo | null = null // Stored as JSON string in database
-    splitInfo: SqlitInfos | null = null // Stored as JSON string in database
-    frameInfo: FrameInfo | null = null // Stored as JSON string in database
     thumbnail: ThumbnailInfo = new ThumbnailInfo() // Stored as JSON string in database
     eventInfo: FileEventInfo | null = null // Stored as JSON string in database
     type: FileType = FileType.Mp4 // Data type
@@ -160,10 +138,6 @@ export class File {
             const hour = fileNameInfo?.startTime.slice(8, 10)
             const minute = fileNameInfo?.startTime.slice(10, 12)
             const second = fileNameInfo?.startTime.slice(12, 14)
-
-            // const endhour = fileNameInfo?.endTime.slice(8, 10)
-            // const endminute = fileNameInfo?.endTime.slice(10, 12)
-            // const endsecond = fileNameInfo?.endTime.slice(12, 14)
 
             let durationStr = ''
             if (f.duration < 60) {
@@ -202,8 +176,8 @@ export class FileModel {
     duration: number = 0 // Video duration
     size: number = 0 // Video size in bytes
     mediaInfo: string = '' // Stored as JSON string in database
-    splitInfo: string = '' // Stored as JSON string in database
-    frameInfo: string = '' // Stored as JSON string in database
+    splitInfo: string = '' // Kept for database schema compatibility, no longer used
+    frameInfo: string = '' // Kept for database schema compatibility, no longer used
     thumbnail: string = '' // Stored as JSON string in database
     eventInfo: string = '' // Stored as JSON string in database
     type: FileType = FileType.Mp4 // Data type
@@ -240,8 +214,8 @@ export class FileViewModel {
     duration: number = 0 // Video duration
     size: number = 0 // Video size in bytes
     mediaInfo: string = '' // Stored as JSON string in database
-    splitInfo: string = '' // Stored as JSON string in database
-    frameInfo: string = '' // Stored as JSON string in database
+    splitInfo: string = '' // Kept for database schema compatibility, no longer used
+    frameInfo: string = '' // Kept for database schema compatibility, no longer used
     thumbnail: string = '' // Stored as JSON string in database
     eventInfo: string = '' // Stored as JSON string in database
     type: FileType = FileType.Mp4 // Data type
@@ -302,30 +276,6 @@ export class CreatePrjResp {
     prjFile: string = ''
 }
 
-export interface SplitInfo {
-    startTime: number
-    endTime: number
-    duration: number
-    percent: number
-    color: string
-    currentTime: number
-    isDelete: boolean
-    frameIdx: number
-    frameNum: number
-    description?: string
-}
-
-export class SqlitInfos {
-    splits: SplitInfo[] = []
-}
-
-export interface BarClip {
-    percent: number
-    width: number
-    color: string
-    tip: string
-}
-
 export interface FileEventInfo {
     time: number
     area: number
@@ -363,106 +313,6 @@ export interface MediaInfo {
         bit_rate: number
         channel_layout: string
     }
-}
-
-export interface Mp4BoxProperty {
-    name: string
-    value: string | number | boolean
-    isHex?: boolean
-}
-
-export interface Mp4Box {
-    type: string
-    name: string
-    offset: number
-    size: number
-    headerSize: number
-    properties?: Mp4BoxProperty[]
-    children?: Mp4Box[]
-    expanded?: boolean
-}
-
-export class ParseMp4BoxReq {
-    filePath: string = ''
-}
-
-export class ParseMp4BoxResp {
-    boxes: Mp4Box[] = []
-    fileSize: number = 0
-    parseTime: number = 0
-}
-
-export interface VideoFrame {
-    index: number
-    type: string
-    keyFrame: boolean
-    pts: number
-    dts: number
-    duration: number
-    size: number
-    offset: number
-    pictType?: string
-}
-
-export class AnalyzeFramesReq {
-    filePath: string = ''
-    page: number = 1
-    pageSize: number = 200
-    startTime?: number
-}
-
-export class AnalyzeFramesResp {
-    frames: VideoFrame[] = []
-    totalFrames: number = 0
-    duration: number = 0
-    frameRate: number = 0
-    codecName: string = ''
-    width: number = 0
-    height: number = 0
-    parseTime: number = 0
-}
-
-export class ScreenshotSaveReq {
-    imageData: string = ''
-    format: 'jpg' | 'png' = 'jpg'
-    filename: string = ''
-}
-
-export class ScreenshotSaveResp {
-    filepath: string = ''
-}
-
-export interface SltMediaInfo {
-    mediaInfo?: MediaInfo
-    eventInfo?: {
-        start_time: string
-        end_time: string
-        execution_time: number
-        file_name: string
-        events: FileEventInfo[][]
-    }
-    splitInfo?: SplitInfo[]
-    frameInfo?: FrameInfo
-    thumbnail?: File[]
-    // keyFrameSplitInfo?: any[]
-}
-
-export interface SltMedia {
-    title: string
-    src: string
-    size: number
-    birthtime: string
-    mtime: string
-    filePath: string
-}
-
-export interface MediaItem {
-    title: string
-    src: string
-    size: number
-    birthtime: string
-    mtime: string
-    filePath: string
 }
 
 export enum RepoType {
@@ -504,13 +354,7 @@ export enum ThumbType {
 
 export type LangType = 'zh-CN' | 'en-US'
 
-export enum ProjectType {
-    FileManagement = 'file_management',
-    ClipEdit = 'clip_edit'
-}
-
 export class Prj {
-    type: ProjectType = ProjectType.FileManagement
     name: string = ''
     version: string = '3.0.0'
     path: string = ''
@@ -567,24 +411,6 @@ export interface TraversalFolder {
     files?: File[]
 }
 
-export enum ExportMode {
-    Segment = 'segment',
-    Merge = 'merge'
-}
-
-export interface Req_CutVideo {
-    fileInfo: File
-    filepath: string
-    filename: string
-    baseFolder?: string
-    exportMode?: ExportMode
-}
-
-export interface Resp_CutVideo {
-    traversalResp?: Resp<TraversalFolder>
-    exportPath?: string
-}
-
 export class DeleteFileReq {
     type: 'del' | 'destroy' = 'del' // del move to trash, destroy delete file
     bDelThumb: boolean = false
@@ -594,29 +420,8 @@ export class DeleteFileReq {
 
 export class DeleteFileResp {}
 
-export interface Frame {
-    pict_type: string
-    pts_time: number
-}
-
-export interface FrameInfo {
-    frames: Frame[]
-}
-
-export interface Req_FrameInfo {
-    filepath: string
-}
-
 export interface Req_SltFile {
     filepath: string
-}
-
-export interface Req_SearchFile {
-    folder: string
-}
-
-export interface Req_ClearWork {
-    files?: File[]
 }
 
 export enum SyncType {
@@ -631,9 +436,6 @@ export class SyncPrjReq {
 }
 export class SyncPrjResp {
     prj: Prj | null = null
-}
-export interface Req_SyncTrash {
-    folder: string
 }
 
 export class FileTagsReqItem {
@@ -735,31 +537,12 @@ export interface FileTagsSetParam {
 
 export enum WorkPanel {
     List = 'list',
-    Operate = 'operate',
     VideoInfo = 'videoInfo'
 }
 
 export class ClearSltInfoReq {
     clearModel?: string
     bNotClear_curSltVideo?: boolean
-}
-
-export interface CutVideoReq {
-    bDelFullVideo?: boolean
-}
-
-export interface ClipProject {
-    type: ProjectType
-    version: string
-    name: string
-    path: string
-    filePath: string
-    fileName: string
-    fileSize: number
-    duration: number
-    splitInfo: SplitInfo[]
-    createdAt: string
-    updatedAt: string
 }
 
 // ========================

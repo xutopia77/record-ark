@@ -31,16 +31,16 @@
                         </td>
                         <td class="description-col">{{ item.description }}</td>
                         <td>
-                            <button
-                                class="xc-button"
+                            <n-button
+                                size="small"
                                 style="margin-right: 10px"
                                 @click.stop="btn_showEditDialog(item)"
                             >
                                 {{ t('adminTagMng.edit') }}
-                            </button>
-                            <button class="xc-button" @click.stop="btn_deletetag(item)">
+                            </n-button>
+                            <n-button size="small" @click.stop="btn_deletetag(item)">
                                 {{ t('adminTagMng.delete') }}
-                            </button>
+                            </n-button>
                         </td>
                     </tr>
                 </tbody>
@@ -56,31 +56,32 @@
                 <div class="dialog-body">
                     <div class="form-group">
                         <label>{{ t('adminTagMng.name') }}</label>
-                        <input v-model="editingTag.name" type="text" class="xc-input" />
+                        <n-input v-model:value="editingTag.name" size="small" />
                     </div>
                     <div class="form-group">
                         <label>{{ t('adminTagMng.color') }}</label>
                         <div class="color-input-group">
                             <input v-model="editingTag.color" type="color" class="color-picker" />
-                            <input v-model="editingTag.color" type="text" class="xc-input" />
+                            <n-input v-model:value="editingTag.color" size="small" />
                         </div>
                     </div>
                     <div class="form-group">
                         <label>{{ t('adminTagMng.description') }}</label>
-                        <textarea
-                            v-model="editingTag.description"
-                            class="xc-input textarea"
-                            rows="3"
-                        ></textarea>
+                        <n-input
+                            v-model:value="editingTag.description"
+                            type="textarea"
+                            size="small"
+                            :rows="3"
+                        />
                     </div>
                 </div>
                 <div class="dialog-footer">
-                    <button class="xc-button" @click="closeEditDialog">
+                    <n-button size="small" @click="closeEditDialog">
                         {{ t('common.cancel') }}
-                    </button>
-                    <button class="xc-button primary" @click="btn_saveTag">
+                    </n-button>
+                    <n-button size="small" type="primary" @click="btn_saveTag">
                         {{ t('common.save') }}
-                    </button>
+                    </n-button>
                 </div>
             </div>
         </div>
@@ -95,12 +96,12 @@
                     <p>{{ t('adminTagMng.deleteConfirm') }}</p>
                 </div>
                 <div class="dialog-footer">
-                    <button class="xc-button" @click="closeDeleteDialog">
+                    <n-button size="small" @click="closeDeleteDialog">
                         {{ t('common.cancel') }}
-                    </button>
-                    <button class="xc-button danger" @click="btn_confirmDelete">
+                    </n-button>
+                    <n-button size="small" type="error" @click="btn_confirmDelete">
                         {{ t('adminTagMng.delete') }}
-                    </button>
+                    </n-button>
                 </div>
             </div>
         </div>
@@ -325,27 +326,6 @@ function tagNameShowMake(tagName: string): string {
     font-size: 13px;
 }
 
-.form-group .xc-input {
-    width: 100%;
-    padding: 8px 12px;
-    background-color: #3c3c3c;
-    border: 1px solid #555;
-    border-radius: 4px;
-    color: #ccc;
-    font-size: 13px;
-    box-sizing: border-box;
-}
-
-.form-group .xc-input:focus {
-    outline: none;
-    border-color: #007acc;
-}
-
-.form-group .textarea {
-    resize: vertical;
-    min-height: 60px;
-}
-
 .color-input-group {
     display: flex;
     gap: 10px;
@@ -360,27 +340,5 @@ function tagNameShowMake(tagName: string): string {
     border-radius: 4px;
     cursor: pointer;
     background: transparent;
-}
-
-.color-input-group .xc-input {
-    flex: 1;
-}
-
-.xc-button.primary {
-    background-color: #007acc;
-    color: #fff;
-}
-
-.xc-button.primary:hover {
-    background-color: #0098ff;
-}
-
-.xc-button.danger {
-    background-color: #c42b1c;
-    color: #fff;
-}
-
-.xc-button.danger:hover {
-    background-color: #e74c3c;
 }
 </style>

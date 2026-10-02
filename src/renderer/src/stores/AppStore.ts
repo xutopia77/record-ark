@@ -12,15 +12,12 @@ export interface ToastMessage {
 export type AppStore = {
     appInfo: Dty.AppInfo
     prj: Dty.Prj | null
-    clipProject: Dty.ClipProject | null
-    recentFiles: Dty.RecentItem[]
     recentProjects: Dty.RecentItem[]
     serverUrlPrefix: string
     curWorks: Dty.WorkResp[]
 
     // ------ message toast
     bPageResentMsg: boolean // Open page recent messages
-    toasts: ToastMessage[]
     historyToasts: ToastMessage[]
     // ------
     homeNavContent: string
@@ -55,9 +52,6 @@ export type AppStore = {
     curCheckedVideo: Set<Dty.File>
     curSltVideo: Dty.File | null // Updated when mouse selects in list
     curSltVideoName4Play: string // Name of currently selected video, watched in videoPreview to update playback status, don't use elsewhere
-    // curVideoInfo: Dty.File | null // Get info from backend based on selected video
-    //   videoSplitInfo: any[]
-    bShowKeyFrameInfo: boolean
     barSeekTime: number
     documentTitle: string
     thumbSeekTime: number
@@ -76,8 +70,6 @@ export const useAppStore = defineStore('app', {
     state: (): AppStore => ({
         appInfo: new Dty.AppInfo(),
         prj: null,
-        clipProject: null,
-        recentFiles: [],
         recentProjects: [],
         // utils
         // serverUrlPrefix: "http://localhost:38080",
@@ -86,7 +78,6 @@ export const useAppStore = defineStore('app', {
 
         // ------ message toast
         bPageResentMsg: false,
-        toasts: [],
         historyToasts: [],
         // ------
         homeNavContent: '',
@@ -121,10 +112,6 @@ export const useAppStore = defineStore('app', {
         curCheckedVideo: new Set<Dty.File>(), // Currently selected video list
         curSltVideo: null, // Currently selected video
         curSltVideoName4Play: '', // Currently selected video name, used in videoPreview watch to update play status, do not use this variable elsewhere
-        // curVideoInfo: null, // Currently selected video info
-        // ------ Video split info
-        // videoSplitInfo: [],
-        bShowKeyFrameInfo: false, // Whether to show keyframe info
         barSeekTime: 0, // Progress bar drag time
         // document
         documentTitle: '',
