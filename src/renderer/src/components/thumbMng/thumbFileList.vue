@@ -23,12 +23,10 @@
                 >
             </li>
         </ul>
-        <PaginationCtrl page-type="thumb" />
     </div>
 </template>
 
 <script setup lang="ts">
-import PaginationCtrl from '@renderer/components/common/paginationCtrl.vue'
 import { computed, onBeforeMount, ref, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '@renderer/stores/AppStore'
 import { useI18n } from 'vue-i18n'

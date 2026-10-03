@@ -48,8 +48,8 @@
       "saveProject": "保存项目",
       "thumbnailView": "缩略图查看",
       "videoView": "视频查看",
-      "projectSettings": "项目设置",
-      "settings": "设置",
+      "project": "项目",
+      "systemSettings": "系统设置",
       "about": "关于"
     }
   },

@@ -26,8 +26,12 @@
                 :style="cardStyle"
             >
                 <img :src="thumbUrlMake(thumb)" :alt="thumb.name" />
-                <span class="xc-text" @click="btnclk_card_check(thumb)">{{ thumb.btnName }}</span>
-                <span class="xc-text">{{ Thumbnail.makeDisplayName(thumb.name) }}</span>
+                <div class="thumb-meta">
+                    <span class="xc-text" @click="btnclk_card_check(thumb)">{{
+                        thumb.btnName
+                    }}</span>
+                    <span class="xc-text">{{ Thumbnail.makeDisplayName(thumb.name) }}</span>
+                </div>
             </div>
         </div>
     </div>
@@ -247,5 +251,17 @@ onMounted(async (): Promise<void> => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.thumb-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px;
+}
+
+.thumb-meta span:last-child {
+    flex: 1;
+    text-align: right;
 }
 </style>

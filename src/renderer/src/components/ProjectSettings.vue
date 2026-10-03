@@ -19,7 +19,6 @@
                 <AdminSetting v-if="activeTab === 'basic'" />
                 <AdminFileList v-else-if="activeTab === 'files'" />
                 <AdminTagMng v-else-if="activeTab === 'tags'" />
-                <thumbMng v-else-if="activeTab === 'thumbnails'" />
                 <tinyFileDb v-else-if="activeTab === 'tinyfiles'" />
             </div>
         </div>
@@ -33,7 +32,6 @@ import { useI18n } from 'vue-i18n'
 import AdminSetting from './admin_setting/AdminSetting.vue'
 import AdminFileList from './admin_setting/AdminFileList.vue'
 import AdminTagMng from './admin_setting/AdminTagMng.vue'
-import thumbMng from './thumbMng/thumbMng.vue'
 import tinyFileDb from './tinyFileDb/tinyFileDb.vue'
 
 import type { MenuOption } from 'naive-ui'
@@ -47,7 +45,6 @@ const menuOptions = computed((): MenuOption[] => [
     { label: `⚙️ ${t('projectSettings.basicInfo')}`, key: 'basic' },
     { label: `📁 ${t('projectSettings.fileList')}`, key: 'files' },
     { label: `🏷️ ${t('projectSettings.tagManagement')}`, key: 'tags' },
-    { label: `🖼️ ${t('projectSettings.thumbnailManagement')}`, key: 'thumbnails' },
     { label: `📦 ${t('projectSettings.smallFileOrganization')}`, key: 'tinyfiles' }
 ])
 

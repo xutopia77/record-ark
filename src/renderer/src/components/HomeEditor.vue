@@ -14,28 +14,35 @@
             <div class="edit-panel">
                 <div class="view-switch">
                     <n-button-group size="small" style="width: 100%">
-                        <n-button
-                            style="width: 50%"
-                            :type="viewModel === 'video' ? 'primary' : 'default'"
-                            secondary
-                            @click="btn_viewChange('video')"
-                        >
-                            🎞️ {{ t('navigation.menuItems.videoView') }}
-                        </n-button>
-                        <n-button
-                            style="width: 50%"
-                            :type="viewModel === 'thumbnail' ? 'primary' : 'default'"
-                            secondary
-                            @click="btn_viewChange('thumbnail')"
-                        >
-                            🖼️ {{ t('navigation.menuItems.thumbnailView') }}
-                        </n-button>
+                        <n-tooltip trigger="hover" placement="bottom">
+                            <template #trigger>
+                                <n-button
+                                    style="width: 50%"
+                                    :type="viewModel === 'video' ? 'primary' : 'default'"
+                                    secondary
+                                    @click="btn_viewChange('video')"
+                                >
+                                    🎞️
+                                </n-button>
+                            </template>
+                            {{ t('navigation.menuItems.videoView') }}
+                        </n-tooltip>
+                        <n-tooltip trigger="hover" placement="bottom">
+                            <template #trigger>
+                                <n-button
+                                    style="width: 50%"
+                                    :type="viewModel === 'thumbnail' ? 'primary' : 'default'"
+                                    secondary
+                                    @click="btn_viewChange('thumbnail')"
+                                >
+                                    🖼️
+                                </n-button>
+                            </template>
+                            {{ t('navigation.menuItems.thumbnailView') }}
+                        </n-tooltip>
                     </n-button-group>
                 </div>
                 <VideList v-if="appStore.isProjectMode" />
-                <VideoInfo
-                    v-if="appStore.isProjectMode && rightPanel === Dty.WorkPanel.VideoInfo"
-                />
             </div>
         </div>
         <div class="control-area">
@@ -47,7 +54,6 @@
 
 <script lang="ts" setup>
 import VideList from './video_view/work_panel/VideList.vue'
-import VideoInfo from './video_view/work_panel/VideoInfo.vue'
 import ThumbnailView from './video_view/ThumbnailView.vue'
 import PlayProgressBar from './video_view/PlayProgressBar.vue'
 import PlayCtrl from './video_view/PlayCtrl.vue'
@@ -64,8 +70,6 @@ const { t } = useI18n()
 const viewModel = computed(() => {
     return appStore.curViewModel
 })
-
-const rightPanel = computed(() => appStore.rightPanel)
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 
@@ -276,6 +280,7 @@ onUnmounted(() => {
     display: flex;
     flex-direction: column;
     position: relative;
+    overflow: hidden;
 }
 
 .editor-main {
@@ -304,6 +309,7 @@ onUnmounted(() => {
     align-items: center;
     background-color: black;
     position: relative;
+    overflow: hidden;
 }
 
 .video-wrapper video {
@@ -312,6 +318,7 @@ onUnmounted(() => {
     padding: 0;
     margin: 0;
     object-fit: contain;
+    display: block;
 }
 
 .edit-panel {
@@ -323,6 +330,7 @@ onUnmounted(() => {
     border-left: 1px solid #333;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .view-switch {

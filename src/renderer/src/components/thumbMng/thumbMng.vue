@@ -1,5 +1,10 @@
 <template>
     <div class="thumb-mng-container">
+        <div class="thumb-nav-bar">
+            <n-button quaternary size="small" @click="router.push('/')">
+                ← {{ t('navigation.home') }}
+            </n-button>
+        </div>
         <div class="preview-area">
             <div class="preview-image xc-scrollbar">
                 <ThumbView></ThumbView>
@@ -20,16 +25,20 @@ import ThumbList from './thumbFileList.vue'
 import ThumbView from './thumbView.vue'
 import ThumbCtrlBar from './thumbCtrlBar.vue'
 import { onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import util from '@renderer/utils/util'
 import { useAppStore } from '@renderer/stores/AppStore'
 const appStore = useAppStore()
+const { t } = useI18n()
+const router = useRouter()
 import * as Dty from '../../../../bridge/dataTypedef'
 
 let rightPanel = computed(() => appStore.rightPanel)
 
 onMounted(() => {
     let searchReq = new Dty.FilesReq()
-    searchReq.status.push(Dty.Fstatus.Destroy)
+    searchReq.status.push(appStore.fileSearchStatus)
     util.thumbsGet(searchReq)
 })
 </script>
@@ -41,6 +50,11 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     background-color: var(--xc-background-color);
+}
+
+.thumb-nav-bar {
+    padding: 2px 8px;
+    border-bottom: 1px solid #333;
 }
 
 .preview-area {

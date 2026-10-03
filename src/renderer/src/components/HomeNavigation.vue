@@ -8,17 +8,27 @@
             >
                 <span class="menu-item">{{ t('navigation.file') }}</span>
             </n-dropdown>
-            <n-dropdown
-                trigger="click"
-                :options="toolsMenuOptions"
-                @select="onToolsMenuSelect"
+            <span
+                v-if="appStore.isProjectMode"
+                class="menu-item"
+                @click="router.push('/project_settings')"
             >
-                <span class="menu-item">{{ t('navigation.tools') }}</span>
-            </n-dropdown>
+                {{ t('navigation.menuItems.project') }}
+            </span>
+            <span
+                v-if="appStore.isProjectMode"
+                class="menu-item"
+                @click="router.push('/thumb_mng')"
+            >
+                {{ t('projectSettings.thumbnailManagement') }}
+            </span>
+            <span class="menu-item" @click="router.push('/app_setting')">
+                {{ t('navigation.menuItems.systemSettings') }}
+            </span>
             <span class="menu-item" @click="showAboutModal">
                 {{ t('navigation.menuItems.about') }}
             </span>
-            <span class="menu-item" @click="btn_settings">🌐</span>
+            <span class="menu-item" title="中文 / English" @click="btn_toggleLanguage">🌐</span>
         </div>
 
         <div>
@@ -62,7 +72,7 @@ import CreateProjectModal from './CreateProjectModal.vue'
 import type { DropdownOption } from 'naive-ui'
 
 const appStore = useAppStore()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const showCreateModal = ref(false)
 const isAboutModalVisible = ref<boolean>(false)
@@ -100,15 +110,6 @@ const fileMenuOptions = computed((): DropdownOption[] => {
         { type: 'divider', key: 'divider' },
         { label: t('navigation.menuItems.exit'), key: 'exit' }
     )
-    return options
-})
-
-const toolsMenuOptions = computed((): DropdownOption[] => {
-    const options: DropdownOption[] = []
-    if (appStore.isProjectMode) {
-        options.push({ label: t('navigation.menuItems.projectSettings'), key: 'projectSettings' })
-    }
-    options.push({ label: t('navigation.menuItems.settings'), key: 'settings' })
     return options
 })
 
@@ -207,18 +208,21 @@ const hideAboutModal = (): void => {
     isAboutModalVisible.value = false
 }
 
-const btn_settings = (): void => {
-    router.push('/app_setting')
-}
-
-const onToolsMenuSelect = (key: string): void => {
-    switch (key) {
-        case 'projectSettings':
-            router.push('/project_settings')
-            break
-        case 'settings':
-            btn_settings()
-            break
+const btn_toggleLanguage = async (): Promise<void> => {
+    const newLocale = locale.value === 'zh-CN' ? 'en-US' : 'zh-CN'
+    locale.value = newLocale
+    localStorage.setItem('locale', newLocale)
+    if (appStore.prj) {
+        appStore.prj.language = newLocale
+    }
+    const req: Dty.Req = {
+        cmd: Dty.CmdType.appConfigSave,
+        data: JSON.stringify({ language: newLocale })
+    }
+    try {
+        await IpcApi.trigger_event(req)
+    } catch (error) {
+        console.error('Failed to save language setting:', error)
     }
 }
 </script>

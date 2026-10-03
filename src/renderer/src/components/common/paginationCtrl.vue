@@ -28,85 +28,53 @@
         </template>
 
         <template v-else>
-            <div class="pagination-info">
-                <div>
-                    <span class="xc-text">
-                        {{
-                            t('pagination.pageInfo', {
-                                current: currentPage,
-                                total: totalPages,
-                                count: totalNum
-                            })
-                        }}
-                    </span>
+            <span class="xc-text page-total">
+                {{
+                    t('pagination.pageInfo', {
+                        current: currentPage,
+                        total: totalPages,
+                        count: totalNum
+                    })
+                }}
+            </span>
+
+            <n-pagination
+                size="small"
+                :page="currentPage"
+                :page-count="totalPages || 1"
+                :page-size="pageSize"
+                show-quick-jumper
+                show-size-picker
+                :page-sizes="[10, 50, 100, 200, 500, 1000]"
+                @update:page="onPageChange"
+                @update:page-size="handlePageSizeChange"
+            />
+
+            <div class="multi-select-dropdown">
+                <div class="dropdown-header" @click="toggleDropdown">
+                    <span class="selected-text">{{ getSelectedLevelsText() }}</span>
+                    <span class="dropdown-arrow">▼</span>
                 </div>
-                <div class="multi-select-dropdown">
-                    <div class="dropdown-header" @click="toggleDropdown">
-                        <span class="selected-text">{{ getSelectedLevelsText() }}</span>
-                        <span class="dropdown-arrow">▼</span>
+                <div v-show="isDropdownOpen" class="dropdown-content">
+                    <div class="select-all-container">
+                        <n-checkbox
+                            size="small"
+                            :checked="selectedLevels.length === 5"
+                            @update:checked="toggleSelectAll"
+                        >
+                            {{ t('pagination.selectAll') }}
+                        </n-checkbox>
                     </div>
-                    <div v-show="isDropdownOpen" class="dropdown-content">
-                        <div class="select-all-container">
-                            <n-checkbox
-                                size="small"
-                                :checked="selectedLevels.length === 5"
-                                @update:checked="toggleSelectAll"
-                            >
-                                {{ t('pagination.selectAll') }}
+                    <n-checkbox-group
+                        :value="selectedLevels"
+                        @update:value="handleLevelsGroupChange"
+                    >
+                        <div v-for="index in 5" :key="index" class="level-option">
+                            <n-checkbox size="small" :value="index - 1">
+                                {{ index }}☆
                             </n-checkbox>
                         </div>
-                        <n-checkbox-group
-                            :value="selectedLevels"
-                            @update:value="handleLevelsGroupChange"
-                        >
-                            <div v-for="index in 5" :key="index" class="level-option">
-                                <n-checkbox size="small" :value="index - 1">
-                                    {{ index }}☆
-                                </n-checkbox>
-                            </div>
-                        </n-checkbox-group>
-                    </div>
-                </div>
-            </div>
-
-            <div class="pagination-nav">
-                <n-button
-                    quaternary
-                    size="small"
-                    :disabled="currentPage <= 1"
-                    @click="goToPage(currentPage - 1)"
-                >
-                    ◀
-                </n-button>
-
-                <div class="page-jump">
-                    <span class="xc-text">{{ t('pagination.jumpTo') }}</span>
-                    <n-input-number
-                        v-model:value="jumpPageNum"
-                        size="tiny"
-                        :min="1"
-                        :max="totalPages"
-                        @keyup.enter="jumpToPage"
-                    />
-                </div>
-
-                <n-button
-                    quaternary
-                    size="small"
-                    :disabled="currentPage >= totalPages"
-                    @click="goToPage(currentPage + 1)"
-                >
-                    ▶
-                </n-button>
-                <span class="xc-text">{{ t('pagination.itemsPerPage') }}</span>
-                <div class="page-size-selector">
-                    <n-select
-                        :value="pageSize"
-                        size="tiny"
-                        :consistent-menu-width="false"
-                        :options="pageSizeOptions"
-                        @update:value="handlePageSizeChange"
-                    />
+                    </n-checkbox-group>
                 </div>
             </div>
         </template>
@@ -243,7 +211,6 @@ const totalPages = computed(() => {
 const totalNum = computed(() => {
     return props.pageType === 'thumb' ? appStore.thumbTotalNum : appStore.videoTotalNum
 })
-const jumpPageNum = ref(1)
 
 const pageSizeOptions = [10, 50, 100, 200, 500, 1000].map((size) => ({
     label: String(size),
@@ -330,39 +297,28 @@ onUnmounted(() => {
 })
 
 const handleSearch = (): void => {
-    if (props.pageType === 'thumb') {
-        let searchReq = new Dty.FilesReq()
-        searchReq.status.push(Dty.Fstatus.Destroy)
-        for (const lvl of selectedLevels.value) {
-            if (lvl === -2) {
-                searchReq.tags.push('sys_no_score')
-            } else {
-                searchReq.tags.push(`sys_score${lvl + 1}`)
-            }
+    const searchReq = new Dty.FilesReq()
+    searchReq.status.push(appStore.fileSearchStatus)
+    for (const lvl of selectedLevels.value) {
+        if (lvl === -2) {
+            searchReq.tags.push('sys_no_score')
+        } else {
+            searchReq.tags.push(`sys_score${lvl + 1}`)
         }
-        searchReq.orderBy = appStore.fileSearchOrderBy
-        searchReq.order = appStore.fileSearchOrder
+    }
+    searchReq.orderBy = appStore.fileSearchOrderBy
+    searchReq.order = appStore.fileSearchOrder
+    if (props.pageType === 'thumb') {
         util.thumbsGet(searchReq)
     } else {
-        let searchReq = new Dty.FilesReq()
-        searchReq.status.push(appStore.fileSearchStatus)
-        for (const lvl of selectedLevels.value) {
-            if (lvl === -2) {
-                searchReq.tags.push('sys_no_score')
-            } else {
-                searchReq.tags.push(`sys_score${lvl + 1}`)
-            }
-        }
-        searchReq.orderBy = appStore.fileSearchOrderBy
-        searchReq.order = appStore.fileSearchOrder
         util.files_get(searchReq)
     }
 }
 
 const handlePageSizeChange = (value: number): void => {
     pageSize.value = value
-    handleSearch()
     currentPage.value = 1
+    handleSearch()
 }
 
 const goToPage = (pageNum: number): void => {
@@ -372,13 +328,8 @@ const goToPage = (pageNum: number): void => {
     handleSearch()
 }
 
-const jumpToPage = (): void => {
-    if (jumpPageNum.value < 1) {
-        jumpPageNum.value = 1
-    } else if (jumpPageNum.value > totalPages.value) {
-        jumpPageNum.value = totalPages.value
-    }
-    currentPage.value = jumpPageNum.value
+const onPageChange = (pageNum: number): void => {
+    currentPage.value = pageNum
     handleSearch()
 }
 
@@ -444,12 +395,12 @@ const applySettings = (): void => {
 .pagination-controls {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     padding: 4px;
     background-color: var(--xc-background-color);
     border-top: 1px solid #333;
-    flex-wrap: wrap;
-    gap: 2px;
+    flex-wrap: nowrap;
+    gap: 12px;
 }
 
 .pagination-controls.compact {
@@ -476,21 +427,12 @@ const applySettings = (): void => {
 .pagination-info {
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex: 1;
-    min-width: 150px;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
-.pagination-nav {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 2;
-    min-width: 200px;
-}
-
-.page-size-selector {
-    text-align: right;
+.page-total {
+    white-space: nowrap;
 }
 
 .multi-select-dropdown {

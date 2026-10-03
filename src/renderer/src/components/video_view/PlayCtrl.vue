@@ -69,15 +69,11 @@
                 :options="delTypeOptions"
                 :consistent-menu-width="false"
             />
-            <n-button
-                quaternary
-                size="small"
-                title="Edit file tags"
-                @click="btnclk_chg_panel(Dty.WorkPanel.VideoInfo)"
-            >
+            <n-button quaternary size="small" title="Edit file tags" @click="bShowTagModal = true">
                 🏷️
             </n-button>
         </div>
+        <TagModal :visible="bShowTagModal" @close="bShowTagModal = false" />
     </div>
 </template>
 
@@ -87,7 +83,10 @@ import { useAppStore } from '../../stores/AppStore'
 import { useI18n } from 'vue-i18n'
 import '@renderer/assets/common.css'
 import util from '../../utils/util'
+import TagModal from './TagModal.vue'
 const appStore = useAppStore()
+
+const bShowTagModal = ref(false)
 import * as Dty from '../../../../bridge/dataTypedef'
 
 const { t } = useI18n()
@@ -269,10 +268,6 @@ function changeFile(flag: string): void {
         }
         appStore.curSltVideo = appStore.videoList[curVideoIdx + 1]
     }
-}
-
-function btnclk_chg_panel(model: Dty.WorkPanel): void {
-    appStore.rightPanel = model
 }
 
 const delType = ref<'delVideo' | 'delVideoAndThumb'>('delVideo')

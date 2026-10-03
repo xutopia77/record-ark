@@ -48,8 +48,8 @@
       "saveProject": "Save Project",
       "thumbnailView": "Thumbnail View",
       "videoView": "Video View",
-      "projectSettings": "Project Settings",
-      "settings": "Settings",
+      "project": "Project",
+      "systemSettings": "System Settings",
       "about": "About"
     }
   },

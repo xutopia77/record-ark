@@ -1,5 +1,11 @@
 <template>
-    <div class="page-container">
+    <n-modal
+        :show="visible"
+        preset="card"
+        style="width: 420px"
+        :title="t('tag.manage')"
+        @update:show="emit('close')"
+    >
         <div class="tag-info">
             <n-input
                 v-model:value="newTag"
@@ -20,14 +26,23 @@
                 </n-tag>
             </div>
         </div>
-    </div>
+    </n-modal>
 </template>
+
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useAppStore } from '@renderer/stores/AppStore'
 import { useI18n } from 'vue-i18n'
-import * as Dty from '../../../../../bridge/dataTypedef'
+import { useAppStore } from '@renderer/stores/AppStore'
+import * as Dty from '../../../../bridge/dataTypedef'
 import util from '@renderer/utils/util'
+
+defineProps<{
+    visible: boolean
+}>()
+
+const emit = defineEmits<{
+    (e: 'close'): void
+}>()
 
 const appStore = useAppStore()
 const { t } = useI18n()
@@ -42,7 +57,6 @@ function btn_removeTag(tag: Dty.Tag): void {
         util.addToastErr(t('videoInfo.selectFileFirst'))
         return
     }
-
     util.file_tag_delete(appStore.curSltVideo.id, tag.id, {
         bNeedUpdate: true,
         bNeedSltCurVideo: true
@@ -52,20 +66,15 @@ function btn_removeTag(tag: Dty.Tag): void {
 const newTag = ref('')
 const btn_addTag = async (): Promise<void> => {
     const req = new Dty.FileTagsReq()
-    let tagName = ''
-    if (newTag.value.trim()) {
-        tagName = newTag.value.trim()
-    }
-    if (tagName == '') {
+    const tagName = newTag.value.trim()
+    if (tagName === '') {
         util.addToastErr(t('videoInfo.tagNameEmpty'))
         return
     }
-
     if (appStore.curCheckedVideo.size === 0) {
         util.addToastErr(t('videoInfo.selectFileFirst'))
         return
     }
-
     for (const item of appStore.curCheckedVideo) {
         const fileTag: Dty.FileTagsReqItem = {
             fileId: item.id,
@@ -73,36 +82,19 @@ const btn_addTag = async (): Promise<void> => {
         }
         req.fileTags.push(fileTag)
     }
-
     await util.file_tags_set(req, { bNeedUpdate: true, bNeedSltCurVideo: true })
     newTag.value = ''
 }
 </script>
 
 <style scoped>
-.page-container {
-    height: 100%;
-    width: calc(100% - 1px);
-    padding: 0;
-    margin: 0;
-    background-color: var(--xc-background-color);
-    color: var(--xc-text-color);
-    overflow-x: hidden;
-    overflow-y: auto;
-    border-right: 1px solid #333;
-}
-
 .tag-info {
-    width: 100%;
-    padding: 8px;
-    margin: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
 .tags-container {
-    width: 100%;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;

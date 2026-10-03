@@ -297,7 +297,7 @@ class Util {
                 util.addToastInfo(`${delStr} ${t('util.processing')}`)
             } else {
                 const searchReq = new Dty.FilesReq()
-                searchReq.status.push(Dty.Fstatus.Destroy)
+                searchReq.status.push(appStore.fileSearchStatus)
                 await this.thumbsGet(searchReq)
                 util.addToastInfo(`${delStr} ${t('util.success')}`)
             }

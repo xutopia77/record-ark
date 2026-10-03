@@ -1,6 +1,9 @@
 <template>
     <div class="play-ctrl">
-        <span class="xc-text" style="padding-right: 3px">{{ t('thumbCtrlBar.totalFiles') }}</span>
+        <span class="xc-text" style="padding-right: 3px">
+            {{ t('thumbCtrlBar.totalFiles') }}: {{ appStore.thumbTotalNum }}
+        </span>
+        <PaginationCtrl page-type="thumb" style="flex: 1" />
         <div class="right-area-ctrl">
             <n-button
                 size="small"
@@ -20,6 +23,7 @@ import { useI18n } from 'vue-i18n'
 const appStore = useAppStore()
 import '@renderer/assets/common.css'
 import util from '@renderer/utils/util'
+import PaginationCtrl from '@renderer/components/common/paginationCtrl.vue'
 import * as Dty from '../../../../bridge/dataTypedef'
 
 const { t } = useI18n()
@@ -63,5 +67,11 @@ function btn_thumbDel(): void {
 
 .right-area-ctrl {
     margin-left: auto;
+}
+
+.play-ctrl :deep(.pagination-controls) {
+    background-color: transparent;
+    border-top: none;
+    padding: 0 4px;
 }
 </style>
