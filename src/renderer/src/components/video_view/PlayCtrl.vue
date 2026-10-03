@@ -62,13 +62,18 @@
             >
                 🗑
             </n-button>
-            <n-select
-                v-model:value="delType"
-                size="tiny"
-                class="mini-select"
-                :options="delTypeOptions"
-                :consistent-menu-width="false"
-            />
+            <n-tooltip v-if="appStore.fileSearchStatus == Dty.Fstatus.Deleted" trigger="hover">
+                <template #trigger>
+                    <n-select
+                        v-model:value="delType"
+                        size="tiny"
+                        class="mini-select"
+                        :options="delTypeOptions"
+                        :consistent-menu-width="false"
+                    />
+                </template>
+                {{ delTypeTip }}
+            </n-tooltip>
             <n-button quaternary size="small" title="Edit file tags" @click="bShowTagModal = true">
                 🏷️
             </n-button>
@@ -270,16 +275,31 @@ function changeFile(flag: string): void {
     }
 }
 
-const delType = ref<'delVideo' | 'delVideoAndThumb'>('delVideo')
+type DelType = 'delVideo' | 'delVideoAndThumb' | 'restore'
+
+const delType = ref<DelType>('delVideo')
 
 const delTypeOptions = computed(() => [
-    { label: '🗑', value: 'delVideo' },
-    {
-        label: '🗑+',
-        value: 'delVideoAndThumb',
-        disabled: !(appStore.fileSearchStatus == Dty.Fstatus.Deleted)
-    }
+    { label: t('playCtrl.delVideoOnly'), value: 'delVideo' },
+    { label: t('playCtrl.delAll'), value: 'delVideoAndThumb' },
+    { label: t('playCtrl.restore'), value: 'restore' }
 ])
+
+// Tooltip text describes the logic of the currently selected delete type
+const delTypeTipMap: Record<DelType, () => string> = {
+    delVideo: () => t('playCtrl.delVideoOnlyTip'),
+    delVideoAndThumb: () => t('playCtrl.delAllTip'),
+    restore: () => t('playCtrl.restoreTip')
+}
+const delTypeTip = computed(() => delTypeTipMap[delType.value]())
+
+// Reset delete type when search mode changes
+watch(
+    () => appStore.fileSearchStatus,
+    () => {
+        delType.value = 'delVideo'
+    }
+)
 
 function btnclk_delSltVideos(): void {
     const curCheckedVideo = appStore.curCheckedVideo
@@ -300,12 +320,16 @@ function btnclk_delSltVideos(): void {
         return
     }
     if (appStore.fileSearchStatus == Dty.Fstatus.Normal) {
+        // Normal mode: move video to trash, thumbnails untouched
         req.type = 'del'
+    } else if (delType.value == 'restore') {
+        // Trash mode: restore video to repo root folder
+        req.type = 'restore'
     } else {
+        // Trash mode: delete video, optionally also delete thumbnails
         req.type = 'destroy'
+        req.bDelThumb = delType.value == 'delVideoAndThumb'
     }
-    req.bDelThumb = false
-    if (delType.value == 'delVideoAndThumb') req.bDelThumb = true
     util.filesDel(req)
     appStore.curCheckedVideo.clear()
 }

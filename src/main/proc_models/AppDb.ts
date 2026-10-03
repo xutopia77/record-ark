@@ -320,7 +320,9 @@ class AppDb {
             }
             {
                 updateFields.push('thumbnail =?')
-                sqlParams.push(JSON.stringify(fInfo.thumbnail))
+                // null means no thumbnail data, write empty string to keep
+                // database value canonical (empty string, not 'null')
+                sqlParams.push(fInfo.thumbnail == null ? '' : JSON.stringify(fInfo.thumbnail))
             }
             {
                 updateFields.push('eventInfo =?')
@@ -388,6 +390,12 @@ class AppDb {
             const conditionsParam: string[] = []
             const countConditionsParam: string[] = []
 
+            if (req.name != null) {
+                conditionsParam.push('name = ?')
+                countConditionsParam.push('name = ?')
+                params.push(req.name)
+                countParams.push(req.name)
+            }
             if (req.path != null) {
                 conditionsParam.push('path = ?')
                 countConditionsParam.push('path = ?')
@@ -399,6 +407,16 @@ class AppDb {
                 countConditionsParam.push('repo = ?')
                 params.push(req.repo)
                 countParams.push(req.repo)
+            }
+            if (req.bWithThumb === true) {
+                // Only records that still have thumbnail data (thumbnail json
+                // not empty). Exclude legacy dirty values: NULL, '', 'null', '{}'
+                conditionsParam.push(
+                    `thumbnail IS NOT NULL AND thumbnail NOT IN ('', 'null', '{}')`
+                )
+                countConditionsParam.push(
+                    `thumbnail IS NOT NULL AND thumbnail NOT IN ('', 'null', '{}')`
+                )
             }
             if (req.status.length > 0) {
                 const placeholders = req.status.map(() => '?').join(', ')
@@ -561,6 +579,41 @@ class AppDb {
             logger.error(`Error fetching ${this.tbl_files}:`, error)
             resp.err(
                 `Error fetching ${this.tbl_files}: ${error instanceof Error ? error.message : String(error)}`
+            )
+        }
+        return resp
+    }
+
+    // Aggregate file records grouped by status: count/duration/size
+    async fileStatsGet(): Promise<Dty.Resp<Dty.PrjStats>> {
+        const resp = new Dty.Resp<Dty.PrjStats>()
+        try {
+            if (!this.db) throw new Error('Database not initialized')
+            const query = `
+                SELECT status,
+                       COUNT(*) AS count,
+                       IFNULL(SUM(duration), 0) AS duration,
+                       IFNULL(SUM(size), 0) AS size
+                FROM ${this.tbl_files}
+                GROUP BY status
+            `
+            const rows = await this.db.all<
+                { status: number; count: number; duration: number; size: number }[]
+            >(query)
+            resp.data = new Dty.PrjStats()
+            for (const row of rows) {
+                const stat = new Dty.FileStatusStat()
+                stat.status = row.status
+                stat.count = row.count
+                stat.duration = row.duration
+                stat.size = row.size
+                resp.data.fileStats.push(stat)
+            }
+            resp.success('success')
+        } catch (error) {
+            logger.error('Error fetching file stats:', error)
+            resp.err(
+                `Error fetching file stats: ${error instanceof Error ? error.message : String(error)}`
             )
         }
         return resp

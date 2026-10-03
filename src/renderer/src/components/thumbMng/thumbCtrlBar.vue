@@ -38,6 +38,7 @@ function btn_thumbDel(): void {
     const req: Dty.DeleteFileReq = new Dty.DeleteFileReq()
     for (const item of curChkThumb) {
         const fInfo = new Dty.File()
+        fInfo.name = item.name
         fInfo.path = item.path
         fInfo.repo = item.repo
         req.files.push(fInfo)

@@ -191,9 +191,11 @@ export class TraversalFolder {
     }
 
     /*
-        1, Database table files, check if file exists, if not mark as destroy. todo, if thumbnail also not exists, set to nothing
-        2, Traverse thumbnail database files, insert into database table files (if no corresponding entry in table),
-        but file status set to destroy. todo
+        1, Database records: for Normal/Destroy records, check if video file exists,
+        if not mark as Destroy, if exists again mark as Normal.
+        Deleted (trash) and Nothing records are skipped, their video files are not
+        expected to exist in the normal folder.
+        2, Thumbnail/frame db files are never moved by sync, they stay where they are.
     */
     async checkDb(): Promise<Dty.Resp> {
         const resp = new Dty.Resp()
@@ -235,80 +237,31 @@ export class TraversalFolder {
             }
             for (const fInfo of searchResult.data.files) {
                 let chkStatus = ''
-                // file not exist,set file status destroy
-                if (!fs.existsSync(fInfo.path)) {
-                    if (fInfo.status != Dty.Fstatus.Destroy) {
-                        fInfo.status = Dty.Fstatus.Destroy
-                        const upResp = await appDb.fileUpdate(fInfo)
-                        chkStatus += `status destroy update ${upResp.status}; `
-                        if (!upResp.isSuccess()) {
-                            logger.info(`file check ${chkStatus}`)
-                            continue
-                        }
-                    }
-                } else {
-                    // file exist, set status normal
-                    if (fInfo.status != Dty.Fstatus.Normal) {
-                        fInfo.status = Dty.Fstatus.Normal
-                        const upResp = await appDb.fileUpdate(fInfo)
-                        chkStatus += `status normal update ${upResp.status}; `
-                        if (!upResp.isSuccess()) {
-                            logger.info(`file check ${chkStatus}`)
-                            continue
-                        }
-                    }
-                }
-                {
-                    // if file is normal, remove frame db file to normal folder if frame db file in trash
-                    {
-                        const thumbDbFilePath = Util.thumbDbPathGet(fInfo.name, Dty.ThumbType.Frame)
-                        const trashThumbDbPath = Util.thumbTrashDbPathGet(
-                            fInfo.name,
-                            Dty.ThumbType.Frame
-                        )
-                        try {
-                            if (fInfo.status == Dty.Fstatus.Normal) {
-                                if (!fs.existsSync(thumbDbFilePath)) {
-                                    if (fs.existsSync(trashThumbDbPath)) {
-                                        fs.promises.rename(trashThumbDbPath, thumbDbFilePath)
-                                    }
-                                }
-                            } else if ((fInfo.status as Dty.Fstatus) == Dty.Fstatus.Deleted) {
-                                if (!fs.existsSync(trashThumbDbPath)) {
-                                    if (fs.existsSync(thumbDbFilePath)) {
-                                        fs.promises.rename(thumbDbFilePath, trashThumbDbPath)
-                                    }
-                                }
+                // Only check existence for Normal/Destroy records. Deleted (trash) and
+                // Nothing records are skipped, their video files are not expected to
+                // exist in the normal folder.
+                if (fInfo.status == Dty.Fstatus.Normal || fInfo.status == Dty.Fstatus.Destroy) {
+                    // file not exist,set file status destroy
+                    if (!fs.existsSync(fInfo.path)) {
+                        if (fInfo.status != Dty.Fstatus.Destroy) {
+                            fInfo.status = Dty.Fstatus.Destroy
+                            const upResp = await appDb.fileUpdate(fInfo)
+                            chkStatus += `status destroy update ${upResp.status}; `
+                            if (!upResp.isSuccess()) {
+                                logger.info(`file check ${chkStatus}`)
+                                continue
                             }
-                        } catch (err) {
-                            chkStatus += `move thumb file err; `
-                            logger.error(`move thumb file err`, err)
                         }
-                    }
-                    // if file is normal, remove thumbnail db file to normal folder if thumbnail db file in trash
-                    {
-                        const thumbDbFilePath = Util.thumbDbPathGet(fInfo.name, Dty.ThumbType.Thumb)
-                        const trashThumbDbPath = Util.thumbTrashDbPathGet(
-                            fInfo.name,
-                            Dty.ThumbType.Thumb
-                        )
-                        try {
-                            if (fInfo.status == Dty.Fstatus.Normal) {
-                                if (!fs.existsSync(thumbDbFilePath)) {
-                                    if (fs.existsSync(trashThumbDbPath)) {
-                                        fs.promises.rename(trashThumbDbPath, thumbDbFilePath)
-                                    }
-                                }
-                            } else if ((fInfo.status as Dty.Fstatus) == Dty.Fstatus.Deleted) {
-                                if (!fs.existsSync(trashThumbDbPath)) {
-                                    if (fs.existsSync(thumbDbFilePath)) {
-                                        fs.promises.rename(thumbDbFilePath, trashThumbDbPath)
-                                    }
-                                }
+                    } else {
+                        // file exist, set status normal
+                        if (fInfo.status != Dty.Fstatus.Normal) {
+                            fInfo.status = Dty.Fstatus.Normal
+                            const upResp = await appDb.fileUpdate(fInfo)
+                            chkStatus += `status normal update ${upResp.status}; `
+                            if (!upResp.isSuccess()) {
+                                logger.info(`file check ${chkStatus}`)
+                                continue
                             }
-                        } catch (err) {
-                            chkStatus += `move thumb file err; `
-                            logger.error(`move thumb file err`, err)
                         }
                     }
                 }
@@ -1189,7 +1142,10 @@ class AppProc {
     }
 
     /**
-     *      Delete method is 'destroy', will delete both thumb and frame
+     *  Delete thumbnail and frame db files of the given files (both normal and
+     *  trash folders) and clear the record's thumbnail data, so the record
+     *  disappears from thumb management page. Status: Destroy -> Nothing,
+     *  others unchanged. Thumbnails will be regenerated when the video is used.
      */
     async thumbsDel(req: Dty.Req<Dty.DeleteFileReq>): Promise<Dty.Resp<Dty.DeleteFileResp>> {
         const resp = new Dty.Resp<Dty.DeleteFileResp>()
@@ -1201,13 +1157,15 @@ class AppProc {
 
         if (req.data.type == 'destroy') {
             for (const item of req.data.files) {
-                const searchReq = Dty.FilesReq.makeReqStatusNormal(item.path, item.repo)
-                searchReq.status = []
+                // Search by name, orphan records (status Nothing) have no valid path
+                const searchReq = new Dty.FilesReq()
+                searchReq.name = item.name
+                searchReq.repo = item.repo
                 const searchResp = await appDb.fileViewSearch(searchReq)
                 if (searchResp.code !== 0 || searchResp.data?.files.length === 0) {
                     taskManager.statusSet(
                         logger.error(
-                            `thumb del err: ${item.repo} ${item.path}, ${searchResp.status}`
+                            `thumb del err: ${item.repo} ${item.name}, ${searchResp.status}`
                         )
                     )
                     continue
@@ -1220,50 +1178,52 @@ class AppProc {
                     const maxAttempts = 3 // Maximum retry attempts
                     async function attemptRename(): Promise<void> {
                         try {
-                            fInfo.status = Dty.Fstatus.Nothing
+                            // Delete thumbnail and frame db files (both normal and trash folders)
+                            {
+                                const thumbTrashDbPath = Util.thumbTrashDbPathGet(
+                                    fName,
+                                    Dty.ThumbType.Thumb
+                                )
+                                const thumbDbPath = Util.thumbDbPathGet(fName, Dty.ThumbType.Thumb)
+                                if (fs.existsSync(thumbTrashDbPath)) {
+                                    fs.unlinkSync(thumbTrashDbPath)
+                                    logger.info(`thumb file rm ${thumbTrashDbPath}`)
+                                }
+                                if (fs.existsSync(thumbDbPath)) {
+                                    fs.unlinkSync(thumbDbPath)
+                                    logger.info(`thumb file rm ${thumbDbPath}`)
+                                }
+                            }
+                            {
+                                const thumbTrashDbPath = Util.thumbTrashDbPathGet(
+                                    fName,
+                                    Dty.ThumbType.Frame
+                                )
+                                const thumbDbPath = Util.thumbDbPathGet(fName, Dty.ThumbType.Frame)
+                                if (fs.existsSync(thumbTrashDbPath)) {
+                                    fs.unlinkSync(thumbTrashDbPath)
+                                    logger.info(`frame file rm ${thumbTrashDbPath}`)
+                                }
+                                if (fs.existsSync(thumbDbPath)) {
+                                    fs.unlinkSync(thumbDbPath)
+                                    logger.info(`frame file rm ${thumbDbPath}`)
+                                }
+                            }
+                            // Update record: clear thumbnail data so the record
+                            // disappears from thumb management page (which only
+                            // lists records with thumbnail data).
+                            // Destroy -> Nothing (video gone, thumbnails deleted)
+                            // Normal/Deleted/Nothing -> status unchanged
+                            fInfo.thumbnail = null as unknown as Dty.ThumbnailInfo
+                            if (fInfo.status == Dty.Fstatus.Destroy) {
+                                fInfo.status = Dty.Fstatus.Nothing
+                            }
                             const respUp = await appDb.fileUpdate(fInfo)
                             if (respUp.code != 0) {
                                 taskManager.statusSet(
                                     logger.error(`file update error: ${respUp.status} ${filepath}`)
                                 )
                                 throw respUp.status
-                            } else {
-                                {
-                                    const thumbTrashDbPath = Util.thumbTrashDbPathGet(
-                                        fName,
-                                        Dty.ThumbType.Thumb
-                                    )
-                                    const thumbDbPath = Util.thumbDbPathGet(
-                                        fName,
-                                        Dty.ThumbType.Thumb
-                                    )
-                                    if (fs.existsSync(thumbTrashDbPath)) {
-                                        fs.unlinkSync(thumbTrashDbPath)
-                                        logger.info(`thumb file rm ${thumbTrashDbPath}`)
-                                    }
-                                    if (fs.existsSync(thumbDbPath)) {
-                                        fs.unlinkSync(thumbDbPath)
-                                        logger.info(`thumb file rm ${thumbDbPath}`)
-                                    }
-                                }
-                                {
-                                    const thumbTrashDbPath = Util.thumbTrashDbPathGet(
-                                        fName,
-                                        Dty.ThumbType.Frame
-                                    )
-                                    const thumbDbPath = Util.thumbDbPathGet(
-                                        fName,
-                                        Dty.ThumbType.Frame
-                                    )
-                                    if (fs.existsSync(thumbTrashDbPath)) {
-                                        fs.unlinkSync(thumbTrashDbPath)
-                                        logger.info(`frame file rm ${thumbTrashDbPath}`)
-                                    }
-                                    if (fs.existsSync(thumbDbPath)) {
-                                        fs.unlinkSync(thumbDbPath)
-                                        logger.info(`frame file rm ${thumbDbPath}`)
-                                    }
-                                }
                             }
                         } catch (err) {
                             attempts++
@@ -1300,11 +1260,146 @@ class AppProc {
         return resp
     }
 
+    /*
+        Reconcile thumbnail/frame db files with database records:
+        1, Collect video names from database records (all statuses).
+        2, Scan thumbnail and frame folders (including .trash) to collect video
+           names from db file names (strip '_thumbnail.db' / '.db' suffix).
+        3, For names that exist on disk but have no database record (orphan
+           thumbnail files), insert a record with status Nothing and empty path.
+    */
+    async thumbReconcile(): Promise<Dty.Resp> {
+        const resp = new Dty.Resp()
+        if (appCfg.prj.dataRepo.length == 0) {
+            return resp.err('dataRepo is empty')
+        }
+        const repo = appCfg.prj.dataRepo[0]
+
+        // 1, collect video names from database
+        const dbNames = new Set<string>()
+        {
+            const pageSize = 500
+            let page = 1
+            for (;;) {
+                const searchReq = new Dty.FilesReq()
+                searchReq.page = page
+                searchReq.pageSize = pageSize
+                const searchResp = await appDb.filesSearch(searchReq)
+                if (searchResp.code != 0 || searchResp.data == null) {
+                    return resp.err(`thumb reconcile search err: ${searchResp.status}`)
+                }
+                for (const fInfo of searchResp.data.files) {
+                    dbNames.add(fInfo.name)
+                }
+                if (page * pageSize >= searchResp.data.total) {
+                    break
+                }
+                page++
+            }
+        }
+
+        // 2, collect video names from thumbnail/frame folders (including .trash)
+        const diskNames = new Set<string>()
+        const thumbPath = Util.thumbPathGet(Dty.ThumbType.Thumb)
+        const framePath = Util.thumbPathGet(Dty.ThumbType.Frame)
+        const scanDirs = [
+            thumbPath,
+            framePath,
+            Util.thumbTrashPathGet(thumbPath),
+            Util.thumbTrashPathGet(framePath)
+        ]
+        for (const dirPath of scanDirs) {
+            if (dirPath == '' || !fs.existsSync(dirPath)) {
+                continue
+            }
+            try {
+                const fNames = await fs.promises.readdir(dirPath)
+                for (const fName of fNames) {
+                    let videoName: string | null = null
+                    if (fName.endsWith('_thumbnail.db')) {
+                        videoName = fName.slice(0, -'_thumbnail.db'.length)
+                    } else if (fName.endsWith('.db')) {
+                        videoName = fName.slice(0, -'.db'.length)
+                    }
+                    if (videoName != null && videoName != '') {
+                        diskNames.add(videoName)
+                    }
+                }
+            } catch (err) {
+                logger.error(`thumb reconcile readdir err: ${dirPath}`, err)
+            }
+        }
+
+        // 3, insert orphan records
+        let insertCnt = 0
+        for (const videoName of diskNames) {
+            if (dbNames.has(videoName)) {
+                continue
+            }
+            const fileTimeInfo = Dty.FileTools.miFilenameParse(videoName)
+            if (fileTimeInfo == null) {
+                continue
+            }
+            // Read thumb db filenames to fill thumbnail info, so the orphan
+            // record can show its thumbnail images in thumb management page
+            const thumbnailInfo = new Dty.ThumbnailInfo()
+            {
+                let thumbDbPath = Util.thumbDbPathGet(videoName, Dty.ThumbType.Thumb)
+                if (!fs.existsSync(thumbDbPath)) {
+                    thumbDbPath = Util.thumbTrashDbPathGet(videoName, Dty.ThumbType.Thumb)
+                }
+                if (fs.existsSync(thumbDbPath)) {
+                    try {
+                        const thumbDb: Database = await open({
+                            filename: thumbDbPath,
+                            driver: sqlite3.Database
+                        })
+                        const rows = await thumbDb.all<{ filename: string }[]>(
+                            'SELECT filename FROM files'
+                        )
+                        await thumbDb.close()
+                        for (const row of rows) {
+                            thumbnailInfo.path.push(row.filename)
+                        }
+                    } catch (err) {
+                        logger.warn(`thumb reconcile read thumb db err: ${videoName}`, err)
+                    }
+                }
+            }
+            const fileModel: Dty.FileModel = {
+                name: videoName,
+                path: '',
+                startTimeSec: fileTimeInfo.startTimeSec,
+                endTimeSec: fileTimeInfo.endTimeSec,
+                duration: fileTimeInfo.durationSec,
+                size: 0,
+                mediaInfo: '',
+                splitInfo: '',
+                frameInfo: '',
+                thumbnail: JSON.stringify(thumbnailInfo),
+                eventInfo: '',
+                type: Dty.FileType.Mp4,
+                status: Dty.Fstatus.Nothing,
+                repo: repo.name
+            }
+            const insertResp = await appDb.file_insert(fileModel)
+            if (insertResp.code == 0) {
+                insertCnt++
+            }
+        }
+        logger.info(`thumb reconcile over, orphan insert ${insertCnt}`)
+        return resp.success(`thumb reconcile over, orphan insert ${insertCnt}`)
+    }
+
     /**
-     *      If delete method is 'del', move file to recycle bin and also move thumbnails to recycle bin (independent of bDelThumb),
-     *  ensuring files won't be accidentally deleted
-     *      If delete method is 'destroy', delete file completely, but thumbnails depend on bDelThumb:
-     * if bDelThumb is true, thumbnails are also deleted; if bDelThumb is false, thumbnails are preserved.
+     *  type 'del': move video file to trash folder (same name overwritten),
+     *      thumbnail and frame db files are untouched, record status set to Deleted.
+     *  type 'destroy': delete video file (normally the video is in trash folder).
+     *      bDelThumb=false: only delete video file, record status set to Destroy.
+     *      bDelThumb=true: also delete thumbnail and frame db files, record status set to Nothing.
+     *  type 'restore': move video file back to repo root folder (same name overwritten),
+     *      record status set to Normal. The video will be moved to the classify
+     *      group folder on next project sync.
      */
     async filesDel(req: Dty.Req<Dty.DeleteFileReq>): Promise<Dty.Resp<Dty.DeleteFileResp>> {
         const resp = new Dty.Resp<Dty.DeleteFileResp>()
@@ -1346,13 +1441,16 @@ class AppProc {
                                 logger.info(`file rm ${distFilename}`)
                             }
                             if (fs.existsSync(filepath)) {
-                                fInfo.path = distFilename
                                 fs.unlinkSync(filepath)
-                                logger.info(`file rm and update ${filepath}`)
+                                logger.info(`file rm ${filepath}`)
                             }
                             fInfo.status = Dty.Fstatus.Destroy
                             if (req.data?.bDelThumb) {
                                 fInfo.status = Dty.Fstatus.Nothing
+                                // Thumbnail/frame db files are deleted, clear
+                                // thumbnail data so the record disappears from
+                                // thumb management page
+                                fInfo.thumbnail = null as unknown as Dty.ThumbnailInfo
                             }
                             const respUp = await appDb.fileUpdate(fInfo)
                             if (respUp.code != 0) {
@@ -1426,6 +1524,46 @@ class AppProc {
                     }
                 }
             }
+        } else if (req.data.type == 'restore') {
+            for (const item of req.data.files) {
+                const fRepo = Dty.DataRepo.getRepoByPath(item.repo, appCfg.prj.dataRepo)
+                if (fRepo == null || fRepo.path == '') {
+                    return resp.err(`repo not exist ${item.repo},${item.path}`)
+                }
+                const searchReq = Dty.FilesReq.makeReqStatusNormal(item.path, item.repo)
+                searchReq.status = []
+                const searchResp = await appDb.fileViewSearch(searchReq)
+                if (searchResp.code !== 0 || searchResp.data?.files.length === 0) {
+                    taskManager.statusSet(
+                        logger.error(
+                            `file search err: ${item.repo} ${item.path} ${searchResp.status}`
+                        )
+                    )
+                    continue
+                }
+                for (const fInfo of searchResp.data?.files || []) {
+                    // Restore video to repo root folder, same name overwrite.
+                    // The video will be moved to classify group folder on next sync.
+                    const restorePath = path.join(fRepo.path, fInfo.name)
+                    const mvResp = await fileSafeRename(fInfo.path, restorePath, 'force')
+                    if (mvResp != 'success') {
+                        taskManager.statusSet(
+                            logger.error(`file restore err: ${mvResp} ${fInfo.path}`)
+                        )
+                        continue
+                    }
+                    fInfo.status = Dty.Fstatus.Normal
+                    fInfo.path = restorePath
+                    const respUp = await appDb.fileUpdate(fInfo)
+                    if (respUp.code != 0) {
+                        taskManager.statusSet(
+                            logger.error(`file restore update err: ${respUp.status} ${restorePath}`)
+                        )
+                    } else {
+                        taskManager.statusSet(logger.info(`file restore: ${restorePath}`))
+                    }
+                }
+            }
         } else {
             for (const item of req.data.files) {
                 const fRepo = Dty.DataRepo.getRepoByPath(item.repo, appCfg.prj.dataRepo)
@@ -1455,9 +1593,10 @@ class AppProc {
                     const maxAttempts = 3 // Maximum retry attempts
                     async function attemptRename(): Promise<void> {
                         try {
-                            // Move file
-                            if (fs.existsSync(filepath)) {
-                                await fs.promises.rename(filepath, distFilename)
+                            // Move video file to trash folder, same name overwrite
+                            const mvResp = await fileSafeRename(filepath, distFilename, 'force')
+                            if (mvResp == 'err') {
+                                throw new Error(`rename ${filepath} to ${distFilename} err`)
                             }
                             // Update database
                             fInfo.status = Dty.Fstatus.Deleted
@@ -1471,44 +1610,6 @@ class AppProc {
                                 taskManager.statusSet(
                                     logger.info(`file move: ${filepath} to ${distFilename}`)
                                 )
-                                // Move thumbnail files
-                                {
-                                    const thumbTrashDbPath = Util.thumbTrashDbPathGet(
-                                        filename,
-                                        Dty.ThumbType.Thumb
-                                    )
-                                    const thumbDbPath = Util.thumbDbPathGet(
-                                        filename,
-                                        Dty.ThumbType.Thumb
-                                    )
-                                    const rmResp = await fileSafeRename(
-                                        thumbDbPath,
-                                        thumbTrashDbPath,
-                                        'force'
-                                    )
-                                    logger.info(
-                                        `thumb file move: ${thumbDbPath} to ${thumbTrashDbPath} ${rmResp}`
-                                    )
-                                }
-                                // Move frame files
-                                {
-                                    const thumbTrashDbPath = Util.thumbTrashDbPathGet(
-                                        filename,
-                                        Dty.ThumbType.Frame
-                                    )
-                                    const thumbDbPath = Util.thumbDbPathGet(
-                                        filename,
-                                        Dty.ThumbType.Frame
-                                    )
-                                    const rmResp = await fileSafeRename(
-                                        thumbDbPath,
-                                        thumbTrashDbPath,
-                                        'force'
-                                    )
-                                    logger.info(
-                                        `frame file move: ${thumbDbPath} to ${thumbTrashDbPath} ${rmResp}`
-                                    )
-                                }
                             }
                         } catch (err) {
                             attempts++
@@ -1548,6 +1649,44 @@ class AppProc {
     ): Promise<Dty.Resp<Dty.DeleteFileResp>> {
         const respDel = await this.filesDel(req)
         return respDel
+    }
+
+    // Get directory total size recursively (bytes). Returns 0 if dir not exists.
+    static async dirSizeGet(dirPath: string): Promise<number> {
+        let totalSize = 0
+        if (dirPath == '' || !fs.existsSync(dirPath)) {
+            return 0
+        }
+        try {
+            const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
+            for (const entry of entries) {
+                const entryPath = path.join(dirPath, entry.name)
+                if (entry.isDirectory()) {
+                    totalSize += await AppProc.dirSizeGet(entryPath)
+                } else if (entry.isFile()) {
+                    const stat = await fs.promises.stat(entryPath)
+                    totalSize += stat.size
+                }
+            }
+        } catch (err) {
+            logger.error(`dirSizeGet err: ${dirPath}`, err)
+        }
+        return totalSize
+    }
+
+    // Project statistics: file records grouped by status + thumbnail/frame folder sizes
+    async handle_stats_get(): Promise<Dty.Resp<Dty.PrjStats>> {
+        const resp = await appDb.fileStatsGet()
+        if (resp.code != 0 || resp.data == null) {
+            return resp
+        }
+        if (appCfg.prj.dataRepo.length == 0) {
+            return resp
+        }
+        const repo = appCfg.prj.dataRepo[0]
+        resp.data.thumbSize = await AppProc.dirSizeGet(repo.thumbnailPath)
+        resp.data.frameSize = await AppProc.dirSizeGet(repo.framePath)
+        return resp
     }
 
     cmdRespMake<T>(cmdResp: Dty.Resp<T>, bDoClear: boolean = true): Dty.Resp<string> {
@@ -1913,6 +2052,14 @@ class AppProc {
                 const cmdReq = convertCmdRequest<Dty.DeleteFileReq>(req)
                 logger.info(`cmd:${cmd}:${cseq}, length=${cmdReq.data?.files.length}`)
                 return this.cmdRespMake(await this.handle_delete_file(cmdReq))
+            }
+            case Dty.CmdType.thumbReconcile: {
+                logger.info(`cmd:${cmd}:${cseq}`)
+                return this.cmdRespMake(await this.thumbReconcile())
+            }
+            case Dty.CmdType.statsGet: {
+                logger.info(`cmd:${cmd}:${cseq}`)
+                return this.cmdRespMake(await this.handle_stats_get())
             }
             case Dty.CmdType.thumbDel: {
                 const cmdReq = convertCmdRequest<Dty.DeleteFileReq>(req)

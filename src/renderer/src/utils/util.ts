@@ -14,6 +14,23 @@ export function setI18nFunction(
     t = i18nFunction
 }
 
+// Map thumb page search mode to file status list
+export function thumbStatusGet(mode: 'all' | 'normal' | 'noVideo'): Dty.Fstatus[] {
+    switch (mode) {
+        case 'normal':
+            return [Dty.Fstatus.Normal, Dty.Fstatus.Deleted]
+        case 'noVideo':
+            return [Dty.Fstatus.Destroy, Dty.Fstatus.Nothing]
+        default:
+            return [
+                Dty.Fstatus.Normal,
+                Dty.Fstatus.Deleted,
+                Dty.Fstatus.Destroy,
+                Dty.Fstatus.Nothing
+            ]
+    }
+}
+
 function stop_play(bClearCurSltVideo: boolean = true): void {
     if (appStore.videoPlayCtrl.isPlay == false && appStore.videoPlayCtrl.isStop == true) {
         return
@@ -297,7 +314,8 @@ class Util {
                 util.addToastInfo(`${delStr} ${t('util.processing')}`)
             } else {
                 const searchReq = new Dty.FilesReq()
-                searchReq.status.push(appStore.fileSearchStatus)
+                searchReq.status = thumbStatusGet(appStore.thumbSearchMode)
+                searchReq.bWithThumb = true
                 await this.thumbsGet(searchReq)
                 util.addToastInfo(`${delStr} ${t('util.success')}`)
             }
@@ -315,7 +333,11 @@ class Util {
             return
         }
         const delStr =
-            reqInfo.type == 'destroy' ? t('util.permanentlyDelete') : t('util.moveToTrash')
+            reqInfo.type == 'destroy'
+                ? t('util.permanentlyDelete')
+                : reqInfo.type == 'restore'
+                  ? t('util.restore')
+                  : t('util.moveToTrash')
         if (response.code !== 0) {
             util.addToastErr(`${delStr} ${t('util.failed')}: ${response.status}`)
         } else {
@@ -419,11 +441,25 @@ class Util {
         appStore.thumbList = response.data?.files || []
         appStore.thumbTotalNum = response.data?.total || 0
         if (appStore.thumbList.length == 0) {
-            util.addToastInfo(
-                `${t('util.noFiles')}，${t('util.currentMode')}:${appStore.fileSearchStatus == Dty.Fstatus.Deleted ? t('util.trashMode') : t('util.normalMode')}`
-            )
+            util.addToastInfo(t('util.noFiles'))
         }
         return response
+    }
+
+    // Reconcile orphan thumbnail/frame db files with database records
+    async thumbReconcile(): Promise<Dty.Resp> {
+        const req: Dty.Req<null> = {
+            cmd: Dty.CmdType.thumbReconcile
+        }
+        return IpcApi.trigger_event(req)
+    }
+
+    // Get project statistics: file counts/duration/size by status + thumb/frame folder sizes
+    async statsGet(): Promise<Dty.Resp<Dty.PrjStats>> {
+        const req: Dty.Req<null> = {
+            cmd: Dty.CmdType.statsGet
+        }
+        return IpcApi.trigger_event<null, Dty.PrjStats>(req)
     }
 
     async thumb_img_get(videoName: string, thumbName: string): Promise<string | null> {

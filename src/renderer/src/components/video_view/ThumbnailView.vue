@@ -4,16 +4,16 @@
             <span class="xc-text toolbar-label">{{ t('thumbnailView.cardSize') }}:</span>
             <n-button
                 size="small"
-                :disabled="appStore.thumbnailCardSize <= 2"
-                @click="changeCardSize(-1)"
+                :disabled="appStore.thumbnailCardSize >= 8"
+                @click="changeCardSize(1)"
             >
                 -
             </n-button>
-            <span class="xc-text size-value">{{ appStore.thumbnailCardSize }}</span>
+            <span class="xc-text size-value">{{ 10 - appStore.thumbnailCardSize }}</span>
             <n-button
                 size="small"
-                :disabled="appStore.thumbnailCardSize >= 8"
-                @click="changeCardSize(1)"
+                :disabled="appStore.thumbnailCardSize <= 2"
+                @click="changeCardSize(-1)"
             >
                 +
             </n-button>

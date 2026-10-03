@@ -4,7 +4,10 @@
             <li
                 v-for="(video, index) in videoList"
                 :key="index"
-                :class="{ selected: video === appStore.curSltVideo }"
+                :class="{
+                    selected: video === appStore.curSltVideo,
+                    trash: appStore.fileSearchStatus === Dty.Fstatus.Deleted
+                }"
             >
                 <n-checkbox
                     size="small"
@@ -14,12 +17,30 @@
                         (checked: boolean) => toggleVideoSelection(video, checked, index)
                     "
                 />
-                <span
-                    class="xc-text"
-                    :style="getVideoLevelColorStyle(video)"
-                    @click="btn_playVideo(video)"
-                    >{{ `${index + 1}:${Dty.File.makeDisplayName(video)}` }}</span
-                >
+                <div class="item-info" @click="btn_playVideo(video)">
+                    <div class="item-line1">
+                        <span class="item-index">{{ index + 1 }}</span>
+                        <span class="item-time">{{ Dty.File.makeRecordTime(video) }}</span>
+                        <span class="item-duration">{{
+                            Dty.File.makeDurationStr(video.duration)
+                        }}</span>
+                    </div>
+                    <div class="item-line2">
+                        <span
+                            v-if="levelShowNameGet(video) !== ''"
+                            class="item-level"
+                            :style="getVideoLevelColorStyle(video)"
+                            >{{ levelShowNameGet(video) }}</span
+                        >
+                        <span
+                            v-for="tag in userTagsGet(video)"
+                            :key="tag.name"
+                            class="item-tag"
+                            :style="getTagColorStyle(tag)"
+                            >{{ Dty.Utils.makeTagShowName(tag.name) }}</span
+                        >
+                    </div>
+                </div>
             </li>
         </ul>
         <PaginationCtrl page-type="video" :compact="true" />
@@ -89,6 +110,24 @@ onBeforeMount(() => {})
 
 const btn_playVideo = (video: Dty.File): void => {
     appStore.curSltVideo = video
+}
+
+// Level tag show name ('' if no level tag)
+const levelShowNameGet = (video: Dty.File): string => {
+    const levelTag = video.tags.find((tag) => tag.name.startsWith('sys_score'))
+    return levelTag ? Dty.Utils.makeTagShowName(levelTag.name) : ''
+}
+
+// Tags except the level tag
+const userTagsGet = (video: Dty.File): Dty.Tag[] => {
+    return video.tags.filter((tag) => !tag.name.startsWith('sys_score'))
+}
+
+const getTagColorStyle = (tag: Dty.Tag): string => {
+    if (appStore.fileSearchStatus === Dty.Fstatus.Deleted) {
+        return 'color: #888888;'
+    }
+    return tag.color ? `color: ${tag.color};` : 'color: #cccccc;'
 }
 
 /**
@@ -175,5 +214,65 @@ const getVideoLevelColorStyle = (video): string => {
 
 .video-checkbox {
     flex-shrink: 0;
+}
+
+/* Two-line item info: line1 index/time/duration, line2 level/tags */
+.item-info {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.item-line1 {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.item-index {
+    flex-shrink: 0;
+    min-width: 18px;
+    text-align: right;
+    color: #888888;
+    font-size: 12px;
+}
+
+.item-time {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.item-duration {
+    flex-shrink: 0;
+    color: #999999;
+    font-size: 12px;
+}
+
+.item-line2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-top: 1px;
+    white-space: normal;
+}
+
+.item-level {
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+.item-tag {
+    font-size: 11px;
+    line-height: 14px;
+    padding: 0 4px;
+    border: 1px solid #444;
+    border-radius: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.page-container li.trash {
+    color: #888888;
 }
 </style>

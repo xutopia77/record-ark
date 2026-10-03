@@ -50,33 +50,15 @@
                 @update:page-size="handlePageSizeChange"
             />
 
-            <div class="multi-select-dropdown">
-                <div class="dropdown-header" @click="toggleDropdown">
-                    <span class="selected-text">{{ getSelectedLevelsText() }}</span>
-                    <span class="dropdown-arrow">▼</span>
-                </div>
-                <div v-show="isDropdownOpen" class="dropdown-content">
-                    <div class="select-all-container">
-                        <n-checkbox
-                            size="small"
-                            :checked="selectedLevels.length === 5"
-                            @update:checked="toggleSelectAll"
-                        >
-                            {{ t('pagination.selectAll') }}
-                        </n-checkbox>
-                    </div>
-                    <n-checkbox-group
-                        :value="selectedLevels"
-                        @update:value="handleLevelsGroupChange"
-                    >
-                        <div v-for="index in 5" :key="index" class="level-option">
-                            <n-checkbox size="small" :value="index - 1">
-                                {{ index }}☆
-                            </n-checkbox>
-                        </div>
-                    </n-checkbox-group>
-                </div>
-            </div>
+            <n-button
+                quaternary
+                size="small"
+                class="settings-btn"
+                style="margin-left: auto"
+                @click="openSettingsModal"
+            >
+                ⚙
+            </n-button>
         </template>
 
         <div
@@ -90,7 +72,7 @@
                     <n-button quaternary size="small" @click="closeSettingsModal">✕</n-button>
                 </div>
                 <div class="modal-body">
-                    <div class="setting-item">
+                    <div class="setting-item" v-if="pageType !== 'thumb'">
                         <span class="xc-text">{{ t('pagination.fileStatus') }}</span>
                         <n-select
                             v-model:value="modalFileStatus"
@@ -98,6 +80,20 @@
                             :consistent-menu-width="false"
                             :options="fileStatusOptions"
                         />
+                    </div>
+                    <div class="setting-item" v-else>
+                        <span class="xc-text">{{ t('pagination.thumbFilter') }}</span>
+                        <n-tooltip trigger="hover">
+                            <template #trigger>
+                                <n-select
+                                    v-model:value="modalThumbMode"
+                                    size="tiny"
+                                    :consistent-menu-width="false"
+                                    :options="thumbFilterOptions"
+                                />
+                            </template>
+                            {{ thumbModeTip }}
+                        </n-tooltip>
                     </div>
                     <div class="setting-item">
                         <span class="xc-text">{{ t('pagination.levelFilter') }}</span>
@@ -161,13 +157,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useAppStore } from '@renderer/stores/AppStore'
 import { useI18n } from 'vue-i18n'
 const appStore = useAppStore()
 import '@renderer/assets/common.css'
 import * as Dty from '../../../../bridge/dataTypedef'
-import util from '@renderer/utils/util'
+import util, { thumbStatusGet } from '@renderer/utils/util'
 
 const { t } = useI18n()
 
@@ -218,12 +214,12 @@ const pageSizeOptions = [10, 50, 100, 200, 500, 1000].map((size) => ({
 }))
 
 const selectedLevels = ref<number[]>([])
-const isDropdownOpen = ref(false)
 
 const showSettingsModal = ref(false)
 const modalSelectedLevels = ref<number[]>([])
 const modalPageSize = ref(50)
 const modalFileStatus = ref<Dty.Fstatus>(Dty.Fstatus.Normal)
+const modalThumbMode = ref<'all' | 'normal' | 'noVideo'>('all')
 const modalOrderBy = ref<'name' | 'startTimeSec' | 'endTimeSec' | 'size' | 'duration'>(
     'startTimeSec'
 )
@@ -233,6 +229,19 @@ const fileStatusOptions = [
     { label: `🗄️ ${t('pagination.normalFiles')}`, value: Dty.Fstatus.Normal },
     { label: `🗑️ ${t('pagination.trashFiles')}`, value: Dty.Fstatus.Deleted }
 ]
+const thumbFilterOptions = [
+    { label: t('pagination.thumbFilterAll'), value: 'all' },
+    { label: t('pagination.thumbFilterNormal'), value: 'normal' },
+    { label: t('pagination.thumbFilterNoVideo'), value: 'noVideo' }
+]
+
+// Tooltip text describes the logic of the currently selected filter
+const thumbModeTipMap: Record<'all' | 'normal' | 'noVideo', () => string> = {
+    all: () => t('pagination.thumbFilterAllTip'),
+    normal: () => t('pagination.thumbFilterNormalTip'),
+    noVideo: () => t('pagination.thumbFilterNoVideoTip')
+}
+const thumbModeTip = computed(() => thumbModeTipMap[modalThumbMode.value]())
 const orderByOptions = [
     { label: t('pagination.sortOptions.name'), value: 'name' },
     { label: t('pagination.sortOptions.startTimeSec'), value: 'startTimeSec' },
@@ -245,60 +254,18 @@ const orderOptions = [
     { label: t('pagination.sortOrderOptions.asc'), value: 'asc' }
 ]
 
-const toggleDropdown = (): void => {
-    isDropdownOpen.value = !isDropdownOpen.value
-}
-
-const getSelectedLevelsText = (): string => {
-    if (selectedLevels.value.length === 0) {
-        return t('pagination.noLevelSelected')
-    } else if (selectedLevels.value.length === 5) {
-        return t('pagination.allLevels')
-    } else {
-        return selectedLevels.value.map((level) => `${level + 1}☆`).join(', ')
-    }
-}
-
-const toggleSelectAll = (): void => {
-    if (selectedLevels.value.length === 5) {
-        selectedLevels.value = []
-    } else {
-        selectedLevels.value = [0, 1, 2, 3, 4]
-    }
-    handleLevelChange()
-}
-
-const handleLevelChange = (): void => {
-    handleSearch()
-}
-
-const handleLevelsGroupChange = (value: Array<number | string>): void => {
-    selectedLevels.value = value.map((v) => Number(v))
-    handleLevelChange()
-}
-
 const handleModalLevelsGroupChange = (value: Array<number | string>): void => {
     modalSelectedLevels.value = value.map((v) => Number(v))
 }
 
-const handleClickOutside = (event: Event): void => {
-    const target = event.target as Element
-    if (!target.closest('.multi-select-dropdown')) {
-        isDropdownOpen.value = false
-    }
-}
-
-onMounted(() => {
-    document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside)
-})
-
 const handleSearch = (): void => {
     const searchReq = new Dty.FilesReq()
-    searchReq.status.push(appStore.fileSearchStatus)
+    if (props.pageType === 'thumb') {
+        searchReq.status = thumbStatusGet(appStore.thumbSearchMode)
+        searchReq.bWithThumb = true
+    } else {
+        searchReq.status.push(appStore.fileSearchStatus)
+    }
     for (const lvl of selectedLevels.value) {
         if (lvl === -2) {
             searchReq.tags.push('sys_no_score')
@@ -336,7 +303,11 @@ const onPageChange = (pageNum: number): void => {
 const openSettingsModal = (): void => {
     modalSelectedLevels.value = [...selectedLevels.value]
     modalPageSize.value = pageSize.value
-    modalFileStatus.value = appStore.fileSearchStatus
+    if (props.pageType === 'thumb') {
+        modalThumbMode.value = appStore.thumbSearchMode
+    } else {
+        modalFileStatus.value = appStore.fileSearchStatus
+    }
     modalOrderBy.value = appStore.fileSearchOrderBy
     modalOrder.value = appStore.fileSearchOrder
     showSettingsModal.value = true
@@ -361,7 +332,13 @@ const applySettings = (): void => {
         needSearch = true
     }
 
-    if (appStore.fileSearchStatus !== modalFileStatus.value) {
+    if (props.pageType === 'thumb') {
+        if (appStore.thumbSearchMode !== modalThumbMode.value) {
+            appStore.thumbSearchMode = modalThumbMode.value
+            currentPage.value = 1
+            needSearch = true
+        }
+    } else if (appStore.fileSearchStatus !== modalFileStatus.value) {
         appStore.fileSearchStatus = modalFileStatus.value
         currentPage.value = 1
         needSearch = true
@@ -433,69 +410,6 @@ const applySettings = (): void => {
 
 .page-total {
     white-space: nowrap;
-}
-
-.multi-select-dropdown {
-    position: relative;
-    min-width: 120px;
-}
-
-.dropdown-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 8px;
-    background-color: #2d2d30;
-    border: 1px solid #3c3c41;
-    border-radius: 3px;
-    color: var(--xc-text-color);
-    cursor: pointer;
-    user-select: none;
-}
-
-.dropdown-header:hover {
-    border-color: #007fd4;
-}
-
-.selected-text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100px;
-    font-size: small;
-}
-
-.dropdown-arrow {
-    font-size: 10px;
-    margin-left: 5px;
-}
-
-.dropdown-content {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    background-color: #2d2d30;
-    border: 1px solid #3c3c41;
-    border-radius: 3px;
-    z-index: 10;
-    max-height: 200px;
-    overflow-y: auto;
-    margin-bottom: 2px;
-}
-
-.select-all-container {
-    padding: 0px;
-    font-size: small;
-    border-bottom: 1px solid #3c3c41;
-}
-
-.level-option {
-    padding: 0px;
-}
-
-.level-option:hover {
-    background-color: #3c3c41;
 }
 
 .settings-modal-overlay {

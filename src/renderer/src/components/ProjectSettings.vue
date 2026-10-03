@@ -20,6 +20,7 @@
                 <AdminFileList v-else-if="activeTab === 'files'" />
                 <AdminTagMng v-else-if="activeTab === 'tags'" />
                 <tinyFileDb v-else-if="activeTab === 'tinyfiles'" />
+                <AdminStats v-else-if="activeTab === 'stats'" />
             </div>
         </div>
     </div>
@@ -32,6 +33,9 @@ import { useI18n } from 'vue-i18n'
 import AdminSetting from './admin_setting/AdminSetting.vue'
 import AdminFileList from './admin_setting/AdminFileList.vue'
 import AdminTagMng from './admin_setting/AdminTagMng.vue'
+import { defineAsyncComponent } from 'vue'
+// Async load: echarts only downloads when the stats tab is opened
+const AdminStats = defineAsyncComponent(() => import('./admin_setting/AdminStats.vue'))
 import tinyFileDb from './tinyFileDb/tinyFileDb.vue'
 
 import type { MenuOption } from 'naive-ui'
@@ -45,7 +49,8 @@ const menuOptions = computed((): MenuOption[] => [
     { label: `⚙️ ${t('projectSettings.basicInfo')}`, key: 'basic' },
     { label: `📁 ${t('projectSettings.fileList')}`, key: 'files' },
     { label: `🏷️ ${t('projectSettings.tagManagement')}`, key: 'tags' },
-    { label: `📦 ${t('projectSettings.smallFileOrganization')}`, key: 'tinyfiles' }
+    { label: `📦 ${t('projectSettings.smallFileOrganization')}`, key: 'tinyfiles' },
+    { label: `📊 ${t('projectSettings.statistics')}`, key: 'stats' }
 ])
 
 const currentTitle = computed(() => {

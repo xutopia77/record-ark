@@ -22,6 +22,8 @@ export enum CmdType {
     SyncStop = 'syncStop',
 
     videoDel = 'delete_video',
+    thumbReconcile = 'thumb_reconcile',
+    statsGet = 'stats_get',
 
     tinyFileDbStart = 'tinyFileDbStart',
     tinyFileDbStop = 'tinyFileDbStop',
@@ -123,43 +125,40 @@ export class File {
     static makePlayUrl(finfo: File): string {
         return `file://${finfo.path}`
     }
-    static makeDisplayName(f: File): string {
-        let displayName = ''
-        {
-            // 10_20250301105200_20250301105306.mp4
-            const fileNameInfo = FileTools.miFilenameParse(f.name)
-            if (fileNameInfo === null) {
-                return this.name
-            }
-
-            const year = fileNameInfo?.startTime.slice(0, 4)
-            const month = fileNameInfo?.startTime.slice(4, 6)
-            const day = fileNameInfo?.startTime.slice(6, 8)
-            const hour = fileNameInfo?.startTime.slice(8, 10)
-            const minute = fileNameInfo?.startTime.slice(10, 12)
-            const second = fileNameInfo?.startTime.slice(12, 14)
-
-            let durationStr = ''
-            if (f.duration < 60) {
-                durationStr = `${f.duration}s`
-            } else if (f.duration < 60 * 60) {
-                const minutes = Math.floor(f.duration / 60)
-                const seconds = Math.floor(f.duration % 60)
-                durationStr = `${minutes}m ${seconds}s`
-            } else if (f.duration < 60 * 60 * 24) {
-                const hours = Math.floor(f.duration / (60 * 60))
-                const minutes = Math.floor((f.duration % (60 * 60)) / 60)
-                const seconds = Math.floor(f.duration % 60)
-                durationStr = `${hours}h ${minutes}m ${seconds}s`
-            } else {
-                const days = Math.floor(f.duration / (60 * 60 * 24))
-                const hours = Math.floor((f.duration % (60 * 60 * 24)) / (60 * 60))
-                const minutes = Math.floor((f.duration % (60 * 60)) / 60)
-                const seconds = Math.floor(f.duration % 60)
-                durationStr = `${days}d ${hours}h ${minutes}m ${seconds}s`
-            }
-            displayName = `${year}${month}${day}-${hour}:${minute}:${second}_${durationStr}`
+    // Recording start time string parsed from file name: 20250301-10:52:00
+    static makeRecordTime(f: File): string {
+        // 10_20250301105200_20250301105306.mp4
+        const fileNameInfo = FileTools.miFilenameParse(f.name)
+        if (fileNameInfo === null) {
+            return f.name
         }
+        const startTime = fileNameInfo.startTime
+        return `${startTime.slice(0, 8)}-${startTime.slice(8, 10)}:${startTime.slice(10, 12)}:${startTime.slice(12, 14)}`
+    }
+
+    // Duration string: 5s / 1m 6s / 2h 3m 4s / 1d 2h 3m 4s
+    static makeDurationStr(duration: number): string {
+        if (duration < 60) {
+            return `${duration}s`
+        } else if (duration < 60 * 60) {
+            const minutes = Math.floor(duration / 60)
+            const seconds = Math.floor(duration % 60)
+            return `${minutes}m ${seconds}s`
+        } else if (duration < 60 * 60 * 24) {
+            const hours = Math.floor(duration / (60 * 60))
+            const minutes = Math.floor((duration % (60 * 60)) / 60)
+            const seconds = Math.floor(duration % 60)
+            return `${hours}h ${minutes}m ${seconds}s`
+        }
+        const days = Math.floor(duration / (60 * 60 * 24))
+        const hours = Math.floor((duration % (60 * 60 * 24)) / (60 * 60))
+        const minutes = Math.floor((duration % (60 * 60)) / 60)
+        const seconds = Math.floor(duration % 60)
+        return `${days}d ${hours}h ${minutes}m ${seconds}s`
+    }
+
+    static makeDisplayName(f: File): string {
+        let displayName = `${this.makeRecordTime(f)}_${this.makeDurationStr(f.duration)}`
         for (const tInfo of f.tags) {
             displayName += ` ${Utils.makeTagShowName(tInfo.name)}`
         }
@@ -372,6 +371,21 @@ export class Tiny2DbReq {
     tinyFileDbPath: string = ''
 }
 
+// Per-status file statistics
+export class FileStatusStat {
+    status: Fstatus = Fstatus.Normal
+    count: number = 0
+    duration: number = 0 // Total duration in seconds
+    size: number = 0 // Total size in bytes
+}
+
+// Project statistics info
+export class PrjStats {
+    fileStats: FileStatusStat[] = []
+    thumbSize: number = 0 // Total size of thumbnail folder (including .trash)
+    frameSize: number = 0 // Total size of frame folder (including .trash)
+}
+
 export interface WorkResp<T = string> {
     cmd: CmdType
     data: T
@@ -412,9 +426,13 @@ export interface TraversalFolder {
 }
 
 export class DeleteFileReq {
-    type: 'del' | 'destroy' = 'del' // del move to trash, destroy delete file
+    // del: move video to trash (thumb files untouched)
+    // destroy: delete video from trash; bDelThumb=false only delete video,
+    //          bDelThumb=true also delete thumb and frame db files
+    // restore: move video from trash back to repo root folder
+    type: 'del' | 'destroy' | 'restore' = 'del'
     bDelThumb: boolean = false
-    // Valid fields: path, repo, ignore other fields
+    // Valid fields: path, repo, name, ignore other fields
     files: File[] = []
 }
 
@@ -450,8 +468,10 @@ export class FileTagsReq {
 export class FilesReq {
     page?: number | null = null // Page number, starting from 1
     pageSize: number | null = null
+    name: string | null = null // File name, exact match
     path: string | null = null
     repo: string | null = null
+    bWithThumb?: boolean | null = null // true: only records with thumbnail data (thumbnail json not empty)
     status: Fstatus[] = []
     startTimeSecMin: number | null = null
     startTimeSecMax: number | null = null
