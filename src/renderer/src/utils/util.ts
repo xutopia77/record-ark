@@ -208,6 +208,29 @@ class Util {
     saveFileManagementProject = saveFileManagementProject
     set_video_cur_time = set_video_cur_time
 
+    // Build the current search request from app store state.
+    // Single source of truth for all search/refresh paths (page change, delete refresh,
+    // tag refresh, reconcile refresh...) so the total count always matches the active filters.
+    makeSearchReq(pageType: 'video' | 'thumb'): Dty.FilesReq {
+        const searchReq = new Dty.FilesReq()
+        if (pageType === 'thumb') {
+            searchReq.status = thumbStatusGet(appStore.thumbSearchMode)
+            searchReq.bWithThumb = true
+        } else {
+            searchReq.status.push(appStore.fileSearchStatus)
+        }
+        for (const lvl of appStore.fileSearchLevels) {
+            if (lvl === -2) {
+                searchReq.tags.push('sys_no_score')
+            } else {
+                searchReq.tags.push(`sys_score${lvl + 1}`)
+            }
+        }
+        searchReq.orderBy = appStore.fileSearchOrderBy
+        searchReq.order = appStore.fileSearchOrder
+        return searchReq
+    }
+
     static addToast(message: string, type: Dty.MessageShowType = 'info'): void {
         const id = Date.now()
         const timestamp = Date.now()
@@ -288,6 +311,12 @@ class Util {
                     data: JSON.stringify(notify.result)
                 }
                 util.process_work_response(JSON.stringify(workResp))
+            } else if (notify.status === Dty.TaskStatus.Running && notify.cmd === Dty.CmdType.prjSync) {
+                // Sync progress push from main process (may carry stopped flag)
+                const progress = notify.result as Dty.SyncProgress | undefined
+                if (progress != null) {
+                    appStore.syncProgress = progress
+                }
             } else if (notify.status === Dty.TaskStatus.Failed) {
                 util.addToastErr(`${t('util.taskFailed')}: ${notify.error || 'Unknown error'}`)
             }
@@ -313,10 +342,7 @@ class Util {
             if (response.bOver === false) {
                 util.addToastInfo(`${delStr} ${t('util.processing')}`)
             } else {
-                const searchReq = new Dty.FilesReq()
-                searchReq.status = thumbStatusGet(appStore.thumbSearchMode)
-                searchReq.bWithThumb = true
-                await this.thumbsGet(searchReq)
+                await this.thumbsGet(this.makeSearchReq('thumb'))
                 util.addToastInfo(`${delStr} ${t('util.success')}`)
             }
         }
@@ -345,9 +371,7 @@ class Util {
                 util.addToastInfo(`${delStr} ${t('util.processing')}`)
             } else {
                 appStore.curCheckedVideo.clear()
-                const searchReq = new Dty.FilesReq()
-                searchReq.status.push(appStore.fileSearchStatus)
-                await this.files_get(searchReq)
+                await this.files_get(this.makeSearchReq('video'))
                 util.addToastInfo(`${delStr} ${t('util.success')}`)
             }
         }
@@ -566,9 +590,7 @@ class Util {
             util.addToastErr(`${t('util.deleteTagFailed')}: ${response.status}`)
         } else {
             if (param != null && param.bNeedUpdate) {
-                const searchReq = new Dty.FilesReq()
-                searchReq.status.push(appStore.fileSearchStatus)
-                await this.files_get(searchReq)
+                await this.files_get(this.makeSearchReq('video'))
                 await this.tags_get(null)
                 if (param.bNeedSltCurVideo && appStore.curSltVideo) {
                     await this.get_slt_video(appStore.curSltVideo)
@@ -596,9 +618,7 @@ class Util {
             }
             if (param != null) {
                 if (param.bNeedUpdate) {
-                    const searchReq = new Dty.FilesReq()
-                    searchReq.status.push(appStore.fileSearchStatus)
-                    await this.files_get(searchReq)
+                    await this.files_get(this.makeSearchReq('video'))
                     await this.tags_get(null)
                 }
                 if (param.bNeedSltCurVideo) {
@@ -667,9 +687,7 @@ class Util {
                         console.log('delete video failed', response)
                     } else {
                         util.addToastInfo(`${t('util.deleteCompleted')}:${response.status}`)
-                        const searchReq = new Dty.FilesReq()
-                        searchReq.status.push(appStore.fileSearchStatus)
-                        this.files_get(searchReq)
+                        this.files_get(this.makeSearchReq('video'))
                     }
                 }
                 break

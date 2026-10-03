@@ -1,6 +1,6 @@
 {
-  "name": "streamseek",
-  "version": "5.2.2",
+  "name": "record-ark",
+  "version": "1.0.2",
   "description": "StreamSeek - A video stream analysis and recording management application",
   "main": "./out/main/index.js",
   "author": "xutopia77",

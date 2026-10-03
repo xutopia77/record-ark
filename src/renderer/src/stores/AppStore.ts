@@ -40,7 +40,9 @@ export type AppStore = {
     fileSearchPage: number
     fileSearchPageSize: number
     fileSearchStatus: Dty.Fstatus
+    fileSearchLevels: number[] // Level filter (-2=no level, 0..4=sys_score1..5), shared by video/thumb pages
     thumbSearchMode: 'all' | 'normal' | 'noVideo' // Thumb page filter: all / normal / no video
+    syncProgress: Dty.SyncProgress | null // Live sync progress pushed from main process
     fileSearchOrderBy: 'name' | 'startTimeSec' | 'endTimeSec' | 'size' | 'duration'
     fileSearchOrder: 'asc' | 'desc'
     videoTotalNum: number
@@ -102,7 +104,9 @@ export const useAppStore = defineStore('app', {
         fileSearchPage: 1,
         fileSearchPageSize: 100,
         fileSearchStatus: Dty.Fstatus.Normal,
+        fileSearchLevels: [],
         thumbSearchMode: 'all',
+        syncProgress: null,
         fileSearchOrderBy: 'startTimeSec',
         fileSearchOrder: 'desc',
         videoTotalNum: 0,

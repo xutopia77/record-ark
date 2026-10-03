@@ -35,12 +35,27 @@
                     {{ t('adminSetting.stopSync') }}
                 </n-button>
             </div>
+            <div v-if="appStore.syncProgress != null" class="sync-progress">
+                <template v-if="!appStore.syncProgress.stopped">
+                    <n-progress
+                        type="line"
+                        :percentage="progressPercent"
+                        :height="12"
+                        :border-radius="6"
+                        :fill-border-radius="6"
+                    />
+                    <span class="sync-progress-text">{{ progressText }}</span>
+                </template>
+                <span v-else class="sync-progress-text sync-stopped">
+                    {{ t('adminSetting.syncStopped') }}
+                </span>
+            </div>
         </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import '@renderer/assets/common.css'
 import { IpcApi } from '../../utils/ipcApi'
 import * as Dty from '../../../../bridge/dataTypedef'
@@ -89,20 +104,52 @@ async function btnclk_sync_work(types: Dty.SyncType[] = []): Promise<void> {
         }
     }
     const response = await util.sync_prj(syncTypes)
+    const bSyncStopped = appStore.syncProgress?.stopped == true
+    appStore.syncProgress = null
     if (response.code !== Dty.RespCode.Success) {
         util.addToastErr(`${t('adminSetting.syncProjectFailed')}: ${response.status}`)
     } else {
         if (response.bOver === false) {
             util.addToastInfo(t('adminSetting.backgroundExecuting'))
         } else {
-            util.addToastInfo(`${t('adminSetting.syncProject')}: ${response.status}`)
+            if (bSyncStopped) {
+                util.addToastInfo(t('adminSetting.syncStopped'))
+            } else {
+                util.addToastInfo(`${t('adminSetting.syncProject')}: ${response.status}`)
+            }
             await util.start_app()
-            const searchReq = new Dty.FilesReq()
-            searchReq.status = [appStore.fileSearchStatus]
-            await util.files_get(searchReq)
+            await util.files_get(util.makeSearchReq('video'))
         }
     }
 }
+
+// Sync progress display helpers
+const progressPercent = computed((): number => {
+    const progress = appStore.syncProgress
+    if (progress == null || progress.total <= 0) {
+        return 0
+    }
+    return Math.min(100, Math.round((progress.cur / progress.total) * 100))
+})
+
+const stageNameMap: Record<Dty.SyncStage, string> = {
+    scan: 'adminSetting.stageScan',
+    classify: 'adminSetting.stageClassify',
+    check: 'adminSetting.stageCheck',
+    thumb: 'adminSetting.stageThumb'
+}
+
+const progressText = computed((): string => {
+    const progress = appStore.syncProgress
+    if (progress == null) {
+        return ''
+    }
+    const stageName = t(stageNameMap[progress.stage])
+    if (progress.total <= 0) {
+        return `${stageName}: ${progress.cur}`
+    }
+    return `${stageName}: ${progress.cur}/${progress.total}`
+})
 
 onMounted(() => {})
 </script>
@@ -196,6 +243,23 @@ onMounted(() => {})
     display: flex;
     gap: 8px;
     margin-top: 4px;
+}
+
+/* Sync progress bar area */
+.sync-progress {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sync-progress-text {
+    font-size: 12px;
+    color: var(--xc-text-color);
+}
+
+.sync-stopped {
+    color: #ff9100;
 }
 
 .mode-selector {

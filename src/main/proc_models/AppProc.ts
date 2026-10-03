@@ -155,6 +155,7 @@ export class TraversalFolder {
                     for (const file of currentFiles) {
                         if (bSyncPrjStop) {
                             logger.info(`prj sync stop cur in traversal folder`)
+                            syncProgressNotify('scan', this.status.fileNum, 0, true)
                             return resp
                         }
                         const filePath = path.join(currentPath, file)
@@ -170,6 +171,7 @@ export class TraversalFolder {
                             } else {
                                 try {
                                     await this.procOneFile(filePath, file, stats)
+                                    syncProgressNotify('scan', this.status.fileNum, 0)
                                 } catch (procError) {
                                     console.error(`Error processing file ${filePath}:`, procError)
                                 }
@@ -217,9 +219,11 @@ export class TraversalFolder {
         let processedCount = 0
 
         logger.info(`Starting to check database with ${totalFiles} files`)
+        syncProgressNotify('check', 0, totalFiles)
         while (processedCount < totalFiles) {
             if (bSyncPrjStop) {
                 logger.info(`prj sync stop cur in check db`)
+                syncProgressNotify('check', processedCount, totalFiles, true)
                 break
             }
             const fSearchReq = new Dty.FilesReq()
@@ -271,6 +275,7 @@ export class TraversalFolder {
                     )
                 }
                 processedCount++
+                syncProgressNotify('check', processedCount, totalFiles)
             }
         }
 
@@ -324,6 +329,34 @@ export class TraversalFolder {
 
 let bTiny2DbStop = false
 let bSyncPrjStop = false
+let lastProgressTime = 0
+
+// Throttled sync progress push to renderer (at most once per 500ms).
+// bStopped bypasses the throttle and marks the progress as stopped by user.
+function syncProgressNotify(
+    stage: Dty.SyncStage,
+    cur: number,
+    total: number,
+    bStopped: boolean = false
+): void {
+    const now = Date.now()
+    if (!bStopped && now - lastProgressTime < 500) {
+        return
+    }
+    lastProgressTime = now
+    const progress = new Dty.SyncProgress()
+    progress.stage = stage
+    progress.cur = cur
+    progress.total = total
+    progress.stopped = bStopped
+    const notify: Dty.TaskNotify<Dty.SyncProgress> = {
+        taskId: taskManager.getCurrentTask()?.id ?? '',
+        cmd: Dty.CmdType.prjSync,
+        status: Dty.TaskStatus.Running,
+        result: progress
+    }
+    Util.sendTaskNotify(notify)
+}
 
 class AppProc {
     // constructor() {}
@@ -683,13 +716,17 @@ class AppProc {
             return resp.err('search file error')
         }
         logger.log('start gen thumbnail total=', searchRe.data?.total)
+        const thumbTotal = searchRe.data?.total ?? 0
+        syncProgressNotify('thumb', 0, thumbTotal)
         let count = 0
         for (const fileInfo of searchRe.data?.files ?? []) {
             if (bSyncPrjStop) {
                 logger.log(`prj sync stop cur in gen thumbnail`)
+                syncProgressNotify('thumb', count, thumbTotal, true)
                 break
             }
             count++
+            syncProgressNotify('thumb', count, thumbTotal)
             // get thumbnail
             {
                 const startTime = Date.now()
@@ -769,7 +806,8 @@ class AppProc {
                 logger.info(`traversal ${repo.path} ${respTras.status}`)
             }
 
-            // 2, start classify file
+            // 2, start classify file (stable grouping: grouped files never move,
+            // only root/un-grouped files are placed into the first group with free space)
             {
                 const searchReq = Dty.FilesReq.makeReqStatusNormal(null, repo.name)
                 searchReq.order = 'asc'
@@ -779,8 +817,21 @@ class AppProc {
                     logger.error(`search file error: ${searchResp.status}`)
                     continue
                 }
-                const fileList = searchResp.data?.files ?? []
-                // 2.1, make folder first
+                const allFiles = searchResp.data?.files ?? []
+                // Count files per numeric group folder, collect files still in repo root
+                const grpCountMap = new Map<number, number>()
+                const rootFiles: Dty.File[] = []
+                for (const fInfo of allFiles) {
+                    const parent = path.dirname(fInfo.path)
+                    if (parent === repo.path) {
+                        rootFiles.push(fInfo)
+                        continue
+                    }
+                    const grpNum = parseInt(path.basename(parent))
+                    if (!isNaN(grpNum)) {
+                        grpCountMap.set(grpNum, (grpCountMap.get(grpNum) ?? 0) + 1)
+                    }
+                }
                 let batchSize = appCfg.prj.numEachFolder
                 if (batchSize > 10000 || batchSize < 1) {
                     logger.error(
@@ -788,43 +839,47 @@ class AppProc {
                     )
                     batchSize = 10
                 }
-                const groupNum = Math.ceil(fileList.length / batchSize) + 1
-                for (let i = 0; i < groupNum; i++) {
-                    const grpPath = path.join(repo.path, `${i + 1}`)
+                // First group whose file count is below batchSize
+                const freeGroupGet = (): number => {
+                    let grp = 1
+                    while ((grpCountMap.get(grp) ?? 0) >= batchSize) {
+                        grp++
+                    }
+                    return grp
+                }
+                syncProgressNotify('classify', 0, rootFiles.length)
+                let fileCnt = 0
+                for (const fileInfo of rootFiles) {
+                    if (bSyncPrjStop) {
+                        logger.info(`prj sync stop cur in classify files`)
+                        syncProgressNotify('classify', fileCnt, rootFiles.length, true)
+                        return resp
+                    }
+                    fileCnt++
+                    syncProgressNotify('classify', fileCnt, rootFiles.length)
+                    const grpIdx = freeGroupGet()
+                    const grpPath = path.join(repo.path, `${grpIdx}`)
                     if (!fs.existsSync(grpPath)) {
                         fs.mkdirSync(grpPath)
                     }
-                }
-                let fileCnt = 0
-                // 2.2, Classify the files into groups of 10
-                for (let i = 0; i < fileList.length; i += batchSize) {
-                    if (bSyncPrjStop) {
-                        logger.info(`prj sync stop cur in classify files`)
-                        return resp
+                    const fileName = path.basename(fileInfo.path)
+                    const dstPath = path.join(grpPath, fileName)
+                    if (fileInfo.path == dstPath) {
+                        continue
                     }
-                    const batch = fileList.slice(i, i + batchSize)
-                    for (const fileInfo of batch) {
-                        fileCnt++
-                        const grpIdx = Math.floor(i / batchSize)
-                        const grpPath = path.join(repo.path, `${grpIdx + 1}`)
-                        const fileName = path.basename(fileInfo.path)
-                        const dstPath = path.join(grpPath, fileName)
-                        if (fileInfo.path == dstPath) {
-                            continue
-                        }
-                        fs.renameSync(fileInfo.path, dstPath)
-                        fileInfo.path = dstPath
-                        const updateResp = await appDb.fileUpdate(fileInfo)
-                        if (!updateResp.isSuccess()) {
-                            logger.error(`update file error: ${updateResp.status}`)
-                            continue
-                        }
-                        taskManager.statusSet(
-                            logger.info(
-                                `${fileCnt}/${fileList.length} group file success: ${fileInfo.path}`
-                            )
+                    fs.renameSync(fileInfo.path, dstPath)
+                    fileInfo.path = dstPath
+                    const updateResp = await appDb.fileUpdate(fileInfo)
+                    if (!updateResp.isSuccess()) {
+                        logger.error(`update file error: ${updateResp.status}`)
+                        continue
+                    }
+                    grpCountMap.set(grpIdx, (grpCountMap.get(grpIdx) ?? 0) + 1)
+                    taskManager.statusSet(
+                        logger.info(
+                            `${fileCnt}/${rootFiles.length} group file success: ${fileInfo.path}`
                         )
-                    }
+                    )
                 }
             }
             // 3, start classify thumbnail trash folder

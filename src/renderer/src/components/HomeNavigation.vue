@@ -151,9 +151,7 @@ const btn_openProject = async (): Promise<void> => {
 
     appStore.appInfo.prjFile = prj.path || ''
 
-    const searchReq = new Dty.FilesReq()
-    searchReq.status = [appStore.fileSearchStatus]
-    await util.files_get(searchReq)
+    await util.files_get(util.makeSearchReq('video'))
 
     util.addToastInfo(t('navigation.openProjectSuccess'))
     router.push('/')

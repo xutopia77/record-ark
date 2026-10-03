@@ -113,9 +113,7 @@ const openProject = async (): Promise<void> => {
         appStore.prj = response.data
         appStore.appInfo.prjFile = response.data.path || ''
 
-        const searchReq = new Dty.FilesReq()
-        searchReq.status = [appStore.fileSearchStatus]
-        await util.files_get(searchReq)
+        await util.files_get(util.makeSearchReq('video'))
 
         router.push('/')
     } else {
@@ -143,9 +141,7 @@ const openRecentProject = async (projectPath: string): Promise<void> => {
         appStore.prj = prj
         appStore.appInfo.prjFile = projectPath
 
-        const searchReq = new Dty.FilesReq()
-        searchReq.status = [appStore.fileSearchStatus]
-        await util.files_get(searchReq)
+        await util.files_get(util.makeSearchReq('video'))
 
         router.push('/')
     } else {

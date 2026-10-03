@@ -27,7 +27,7 @@ import ThumbCtrlBar from './thumbCtrlBar.vue'
 import { onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import util, { thumbStatusGet } from '@renderer/utils/util'
+import util from '@renderer/utils/util'
 import { useAppStore } from '@renderer/stores/AppStore'
 const appStore = useAppStore()
 const { t } = useI18n()
@@ -38,19 +38,13 @@ let rightPanel = computed(() => appStore.rightPanel)
 
 onMounted(() => {
     // Search with current thumb filter mode, only records with thumbnail data
-    const searchReq = new Dty.FilesReq()
-    searchReq.status = thumbStatusGet(appStore.thumbSearchMode)
-    searchReq.bWithThumb = true
-    util.thumbsGet(searchReq)
+    util.thumbsGet(util.makeSearchReq('thumb'))
 
     // Reconcile orphan thumbnail files in background, then refresh list
     util
         .thumbReconcile()
         .then(() => {
-            const refreshReq = new Dty.FilesReq()
-            refreshReq.status = thumbStatusGet(appStore.thumbSearchMode)
-            refreshReq.bWithThumb = true
-            return util.thumbsGet(refreshReq)
+            return util.thumbsGet(util.makeSearchReq('thumb'))
         })
         .catch((err) => {
             console.error('thumb reconcile failed:', err)

@@ -163,7 +163,7 @@ import { useI18n } from 'vue-i18n'
 const appStore = useAppStore()
 import '@renderer/assets/common.css'
 import * as Dty from '../../../../bridge/dataTypedef'
-import util, { thumbStatusGet } from '@renderer/utils/util'
+import util from '@renderer/utils/util'
 
 const { t } = useI18n()
 
@@ -213,7 +213,13 @@ const pageSizeOptions = [10, 50, 100, 200, 500, 1000].map((size) => ({
     value: size
 }))
 
-const selectedLevels = ref<number[]>([])
+// Level filter is persisted in app store, shared by all search/refresh paths
+const selectedLevels = computed({
+    get: (): number[] => appStore.fileSearchLevels,
+    set: (value: number[]): void => {
+        appStore.fileSearchLevels = value
+    }
+})
 
 const showSettingsModal = ref(false)
 const modalSelectedLevels = ref<number[]>([])
@@ -259,22 +265,7 @@ const handleModalLevelsGroupChange = (value: Array<number | string>): void => {
 }
 
 const handleSearch = (): void => {
-    const searchReq = new Dty.FilesReq()
-    if (props.pageType === 'thumb') {
-        searchReq.status = thumbStatusGet(appStore.thumbSearchMode)
-        searchReq.bWithThumb = true
-    } else {
-        searchReq.status.push(appStore.fileSearchStatus)
-    }
-    for (const lvl of selectedLevels.value) {
-        if (lvl === -2) {
-            searchReq.tags.push('sys_no_score')
-        } else {
-            searchReq.tags.push(`sys_score${lvl + 1}`)
-        }
-    }
-    searchReq.orderBy = appStore.fileSearchOrderBy
-    searchReq.order = appStore.fileSearchOrder
+    const searchReq = util.makeSearchReq(props.pageType as 'video' | 'thumb')
     if (props.pageType === 'thumb') {
         util.thumbsGet(searchReq)
     } else {

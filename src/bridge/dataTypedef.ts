@@ -414,6 +414,17 @@ export interface TaskNotify<T = unknown> {
     error?: string
 }
 
+// Sync progress stage
+export type SyncStage = 'scan' | 'classify' | 'check' | 'thumb'
+
+// Sync progress info pushed via task-notify during prj sync
+export class SyncProgress {
+    stage: SyncStage = 'scan'
+    cur: number = 0
+    total: number = 0 // 0 means total unknown (e.g. scan stage)
+    stopped: boolean = false // true: sync stopped by user
+}
+
 export interface Req_TraversalFolder {
     type?: string
     startTime?: string //2025-03-25 12:00:00
