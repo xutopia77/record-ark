@@ -52,6 +52,7 @@
                 size="tiny"
                 class="mini-select"
                 :options="levelOptions"
+                :render-label="renderLevelLabel"
                 :consistent-menu-width="false"
             />
             <n-button
@@ -84,7 +85,6 @@
 
 <script setup lang="ts">
 import { computed, h, ref, watch } from 'vue'
-import { NTooltip } from 'naive-ui'
 import { useAppStore } from '../../stores/AppStore'
 import { useI18n } from 'vue-i18n'
 import '@renderer/assets/common.css'
@@ -107,23 +107,21 @@ const speedOptions = [
     { label: '6x', value: 6 }
 ]
 
-// File level options (0-5), each option shows its tag description on hover
-const levelOptions = Array.from({ length: 6 }, (_, i) => ({
-    label: `${i}☆`,
-    value: i,
-    render: (): ReturnType<typeof h> => {
-        const label = `${i}☆`
-        const tag = appStore.tags.find((item) => item.name === `sys_score${i}`)
-        const desc = tag?.description ?? ''
-        if (desc === '') {
-            return h('span', null, label)
-        }
-        return h(NTooltip, null, {
-            trigger: () => h('span', null, label),
-            default: () => desc
-        })
+// File level options (0-5)
+const levelOptions = Array.from({ length: 6 }, (_, i) => ({ label: `${i}☆`, value: i }))
+
+// Render level option label with its tag description as native hover tooltip.
+// Uses render-label (official n-select prop); native title keeps it simple and stable.
+const renderLevelLabel = (option: { value?: number | string }): ReturnType<typeof h> => {
+    const levelVal = Number(option.value)
+    const label = `${levelVal}☆`
+    const tag = appStore.tags.find((item) => item.name === `sys_score${levelVal}`)
+    const desc = tag?.description ?? ''
+    if (desc === '') {
+        return h('span', null, label)
     }
-}))
+    return h('span', { title: desc }, label)
+}
 
 // volume control
 const toggleMute = (): void => {

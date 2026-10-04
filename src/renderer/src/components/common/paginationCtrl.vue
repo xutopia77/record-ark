@@ -21,6 +21,9 @@
                 >
                     ▶
                 </n-button>
+                <span class="xc-text page-count-compact">
+                    {{ t('pagination.totalCount', { count: totalNum }) }}
+                </span>
                 <n-button quaternary size="small" class="settings-btn" @click="openSettingsModal">
                     ⚙
                 </n-button>
@@ -386,6 +389,12 @@ const applySettings = (): void => {
     font-size: 13px;
     min-width: 60px;
     text-align: center;
+}
+
+.page-count-compact {
+    font-size: 12px;
+    color: #999999;
+    white-space: nowrap;
 }
 
 .settings-btn {

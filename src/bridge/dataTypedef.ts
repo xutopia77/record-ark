@@ -564,6 +564,7 @@ export class DbInsertResp {
 export interface FileTagsSetParam {
     bNeedUpdate?: boolean
     bNeedSltCurVideo?: boolean
+    bThumbList?: boolean // true: refresh thumb list instead of video list after set
 }
 
 export enum WorkPanel {

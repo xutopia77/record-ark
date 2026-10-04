@@ -242,6 +242,7 @@
   },
   "pagination": {
     "pageInfo": "Page {current} of {total} (Total: {count} items)",
+    "totalCount": "{count} files",
     "jumpTo": "Go",
     "itemsPerPage": "Page Size",
     "selectAll": "Select All",

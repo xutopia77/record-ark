@@ -242,6 +242,7 @@
   },
   "pagination": {
     "pageInfo": "第 {current} 页 / 共 {total} 页 (共 {count} 条)",
+    "totalCount": "共 {count} 个文件",
     "jumpTo": "跳转",
     "itemsPerPage": "每页",
     "selectAll": "全选",

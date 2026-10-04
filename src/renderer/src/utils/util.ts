@@ -618,7 +618,11 @@ class Util {
             }
             if (param != null) {
                 if (param.bNeedUpdate) {
-                    await this.files_get(this.makeSearchReq('video'))
+                    if (param.bThumbList == true) {
+                        await this.thumbsGet(this.makeSearchReq('thumb'))
+                    } else {
+                        await this.files_get(this.makeSearchReq('video'))
+                    }
                     await this.tags_get(null)
                 }
                 if (param.bNeedSltCurVideo) {
